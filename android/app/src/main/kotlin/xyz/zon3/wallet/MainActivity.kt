@@ -1,4 +1,4 @@
-package xyz.citizenpay.wallet
+package xyz.zon3.wallet
 
 import io.flutter.embedding.android.FlutterActivity
     import io.flutter.embedding.android.FlutterFragmentActivity

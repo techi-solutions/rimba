@@ -38,7 +38,7 @@
 				<key>CFBundleTypeRole</key>
 				<string>Editor</string>
 				<key>CFBundleURLName</key>
-				<string>brussels.pay.wallet2</string>
+				<string>xyz.zon3.wallet</string>
 				<key>CFBundleURLSchemes</key>
 				<array>
 					<string>brusselspay</string>
