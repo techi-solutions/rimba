@@ -7,11 +7,8 @@ import 'package:pay_app/models/order.dart';
 import 'package:pay_app/models/place_with_menu.dart';
 import 'package:pay_app/services/audio/audio.dart';
 import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/db/app/cards.dart';
 import 'package:pay_app/services/db/app/contacts.dart';
 import 'package:pay_app/services/db/app/db.dart';
-import 'package:pay_app/services/db/app/orders.dart';
-import 'package:pay_app/services/db/app/places_with_menu.dart';
 import 'package:pay_app/services/engine/utils.dart';
 import 'package:pay_app/services/pay/orders.dart';
 import 'package:pay_app/services/pay/places.dart';
@@ -27,10 +24,7 @@ import 'package:web3dart/web3dart.dart';
 
 class SendingState with ChangeNotifier {
   // instantiate services here
-  final OrdersTable _ordersTable = AppDBService().orders;
   final ContactsTable _contacts = AppDBService().contacts;
-  final PlacesWithMenuTable _places = AppDBService().placesWithMenu;
-  final CardsTable _cards = AppDBService().cards;
   late OrdersService _ordersService;
   PlacesService apiService = PlacesService();
   final SecureService _secureService = SecureService();
@@ -217,83 +211,8 @@ class SendingState with ChangeNotifier {
     return null;
   }
 
-  Future<ProfileV1?> getContactProfileFromSerial(String serial) async {
-    try {
-      final potentialSerial = serial.trim();
-
-      String? cardAddress;
-
-      final cachedCard = await _cards.getByUid(potentialSerial);
-      if (cachedCard != null) {
-        cardAddress = cachedCard.account;
-      }
-
-      if (cardAddress == null) {
-        final remoteAddress = await _config.cardManagerContract!.getCardAddress(
-          serial,
-        );
-
-        cardAddress = remoteAddress.hexEip55;
-      }
-
-      final contact = await _contacts.getByAccount(cardAddress);
-      profile = contact?.getProfile();
-      safeNotifyListeners();
-
-      if (profile != null) {
-        getProfile(
-          _config,
-          cardAddress,
-        ).then((result) => {
-              if (result != null)
-                {
-                  _contacts.upsert(DBContact.fromProfile(result)),
-                }
-            });
-
-        return profile;
-      }
-
-      profile = await getProfile(
-        _config,
-        cardAddress,
-      );
-      safeNotifyListeners();
-
-      profile ??= ProfileV1(
-        account: cardAddress,
-        name: 'NFC Card',
-        image: 'assets/icons/nfc.png',
-        imageMedium: 'assets/icons/nfc.png',
-        imageSmall: 'assets/icons/nfc.png',
-      );
-      safeNotifyListeners();
-
-      return profile;
-    } catch (e, s) {
-      print('error: $e');
-      print('stack trace: $s');
-    }
-
-    return null;
-  }
-
   Future<Order?> loadExternalOrder(String slug, String orderId) async {
     try {
-      final cachedOrder = await _ordersTable.getById(int.parse(orderId));
-
-      if (cachedOrder != null) {
-        order = cachedOrder;
-        safeNotifyListeners();
-
-        _ordersService.getOrder(slug, int.parse(orderId)).then((result) {
-          order = result;
-          safeNotifyListeners();
-        });
-
-        return order;
-      }
-
       final remoteOrder =
           await _ordersService.getOrder(slug, int.parse(orderId));
 
@@ -304,37 +223,6 @@ class SendingState with ChangeNotifier {
     } catch (e, s) {
       print('loadExternalOrder error: $e');
       print('loadExternalOrder stack trace: $s');
-    }
-
-    return null;
-  }
-
-  Future<PlaceWithMenu?> getPlaceWithMenu(String slug) async {
-    try {
-      final place = await _places.getBySlug(slug);
-      this.place = place;
-
-      if (place != null) {
-        apiService.getPlaceAndMenu(slug).then((result) {
-          this.place = result;
-          safeNotifyListeners();
-
-          _places.upsert(result);
-        });
-      }
-
-      if (place == null) {
-        final remotePlace = await apiService.getPlaceAndMenu(slug);
-        this.place = remotePlace;
-        safeNotifyListeners();
-
-        _places.upsert(remotePlace);
-      }
-
-      return place;
-    } catch (e, s) {
-      print('getPlaceWithMenu error: $e');
-      print('getPlaceWithMenu stack trace: $s');
     }
 
     return null;
@@ -531,8 +419,6 @@ class SendingState with ChangeNotifier {
           if (newOrder == null) {
             throw Exception('Failed to create order');
           }
-
-          _ordersTable.upsert(newOrder);
         } else {
           if (checkout != null) {
             final newOrder = await _ordersService.createOrder(
@@ -545,8 +431,6 @@ class SendingState with ChangeNotifier {
             if (newOrder == null) {
               throw Exception('Failed to create order');
             }
-
-            _ordersTable.upsert(newOrder);
           }
         }
       } else {
@@ -561,8 +445,6 @@ class SendingState with ChangeNotifier {
           if (newOrder == null) {
             throw Exception('Failed to create order');
           }
-
-          _ordersTable.upsert(newOrder);
         } else {
           if (checkout != null) {
             final newOrder = await _ordersService.createCardOrder(
@@ -576,8 +458,6 @@ class SendingState with ChangeNotifier {
             if (newOrder == null) {
               throw Exception('Failed to create order');
             }
-
-            _ordersTable.upsert(newOrder);
           }
         }
 

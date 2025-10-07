@@ -4,12 +4,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pay_app/l10n/app_localizations.dart';
 import 'package:pay_app/screens/home/profile_bar.dart';
-import 'package:pay_app/screens/home/scanner_modal/scanner_modal.dart'
-    as scanner;
 import 'package:pay_app/services/config/config.dart';
 import 'package:pay_app/state/app.dart';
 import 'package:pay_app/state/profile.dart';
-import 'package:pay_app/state/state.dart';
 import 'package:pay_app/state/topup.dart';
 import 'package:pay_app/state/wallet.dart';
 import 'package:pay_app/theme/colors.dart';
@@ -130,46 +127,14 @@ class _HomeShellState extends State<HomeShell> {
         return;
       }
 
-      await handleQRScan(
-        context,
-        () {},
-        manualResult: deepLink,
-      );
+      // await handleQRScan(
+      //   context,
+      //   () {},
+      //   manualResult: deepLink,
+      // );
 
       _pauseDeepLinkHandling = false;
     }
-  }
-
-  Future<void> handleQRScan(
-    BuildContext context,
-    Function() callback, {
-    String? manualResult,
-  }) async {
-    final tokenAddress = context.read<AppState>().currentTokenAddress;
-    final myAddress = context.read<ProfileState>().appAccount.hexEip55;
-
-    final selectedAccount = await showCupertinoDialog<String?>(
-      context: context,
-      useRootNavigator: false,
-      builder: (modalContext) => provideSendingState(
-        context,
-        widget.config,
-        myAddress,
-        scanner.ScannerModal(
-          modalKey: 'home-qr-sending',
-          tokenAddress: tokenAddress,
-          manualScanResult: manualResult,
-          initialIndex: 0,
-        ),
-      ),
-    );
-
-    if (selectedAccount != null && context.mounted) {
-      final navigator = GoRouter.of(context);
-      navigator.replace('/home');
-    }
-
-    callback();
   }
 
   @override
@@ -220,26 +185,26 @@ class _HomeShellState extends State<HomeShell> {
               onAddCard: null,
             ),
           ),
-        if (!navigated)
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            left: 0,
-            right: 0,
-            bottom: small ? -120 : 40,
-            child: SizedBox(
-              height: 120,
-              width: 120,
-              child: Center(
-                child: ScanQrCircle(
-                  handleQRScan: (callback) => handleQRScan(
-                    context,
-                    callback,
-                  ),
-                ),
-              ),
-            ),
-          )
+        // if (!navigated)
+        //   AnimatedPositioned(
+        //     duration: const Duration(milliseconds: 300),
+        //     curve: Curves.easeInOut,
+        //     left: 0,
+        //     right: 0,
+        //     bottom: small ? -120 : 40,
+        //     child: SizedBox(
+        //       height: 120,
+        //       width: 120,
+        //       child: Center(
+        //         child: ScanQrCircle(
+        //           handleQRScan: (callback) => handleQRScan(
+        //             context,
+        //             callback,
+        //           ),
+        //         ),
+        //       ),
+        //     ),
+        //   )
       ],
     );
   }

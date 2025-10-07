@@ -55,38 +55,7 @@ class TransactionsTable extends DBTable {
 
   @override
   Future<void> migrate(Database db, int oldVersion, int newVersion) async {
-    final migrations = {
-      4: [
-        createQuery,
-        'CREATE INDEX idx_${name}_tx_hash ON $name (tx_hash)',
-        'CREATE INDEX idx_${name}_from_account ON $name (from_account)',
-        'CREATE INDEX idx_${name}_to_account ON $name (to_account)',
-        'CREATE INDEX idx_${name}_created_at ON $name (created_at)',
-        'CREATE INDEX idx_${name}_user_transactions ON $name (from_account, to_account, created_at)',
-        'CREATE INDEX idx_${name}_user_transactions_reverse ON $name (to_account, from_account, created_at)',
-      ],
-      5: [
-        'ALTER TABLE $name DROP COLUMN exchange_direction',
-      ],
-      13: [
-        'CREATE INDEX idx_${name}_contract ON $name (contract)',
-      ]
-    };
-
-    for (var i = oldVersion + 1; i <= newVersion; i++) {
-      final queries = migrations[i];
-
-      if (queries != null) {
-        for (final query in queries) {
-          try {
-            await db.execute(query);
-          } catch (e, s) {
-            debugPrint('Migration error: $e');
-            debugPrintStack(stackTrace: s);
-          }
-        }
-      }
-    }
+    // No migrations needed for version 1
   }
 
   // Fetch all transactions

@@ -4,10 +4,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/db/app/cards.dart';
 import 'package:pay_app/services/wallet/contracts/profile.dart';
 import 'package:pay_app/state/app.dart';
-import 'package:pay_app/state/cards.dart';
 import 'package:pay_app/state/profile.dart';
 import 'package:pay_app/state/wallet.dart';
 import 'package:pay_app/theme/colors.dart';
@@ -44,15 +42,11 @@ class _ProfileModalState extends State<ProfileModal> {
   Timer? _displayCardsTimer;
   bool _displayCards = false;
 
-  late CardsState _cardsState;
-
   @override
   void initState() {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _cardsState = context.read<CardsState>();
-
       onLoad();
     });
   }
@@ -76,12 +70,12 @@ class _ProfileModalState extends State<ProfileModal> {
       });
     });
 
-    await _cardsState.fetchCards(tokenAddress: widget.tokenAddress);
+    // await _cardsState.fetchCards(tokenAddress: widget.tokenAddress);
 
-    // Fetch profile for the selected account if not already loaded
-    if (!_cardsState.profiles.containsKey(widget.accountAddress)) {
-      await _cardsState.fetchProfile(widget.accountAddress);
-    }
+    // // Fetch profile for the selected account if not already loaded
+    // if (!_cardsState.profiles.containsKey(widget.accountAddress)) {
+    //   await _cardsState.fetchProfile(widget.accountAddress);
+    // }
   }
 
   void handleScrollToTop() {
@@ -152,175 +146,10 @@ class _ProfileModalState extends State<ProfileModal> {
     // );
   }
 
-  Future<void> handleAddCard(ProfileV1? profile) async {
-    HapticFeedback.heavyImpact();
-
-    final result = await showCupertinoModalPopup<(String, String?)?>(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: blackColor.withAlpha(160),
-      builder: (_) => const NFCModal(
-        modalKey: 'modal-nfc-scanner',
-      ),
-    );
-
-    if (result == null) {
-      return;
-    }
-
-    final (uid, uri) = result;
-
-    final (token, cardAddress, error) =
-        await _cardsState.claim(uid, uri, profile?.name);
-
-    if (token != null) {
-      print('token: $token');
-    }
-
-    if (error == null) {
-      if (!mounted) {
-        return;
-      }
-
-      toastification.showCustom(
-        context: context,
-        autoCloseDuration: const Duration(seconds: 5),
-        alignment: Alignment.bottomCenter,
-        builder: (context, toast) => Toast(
-          icon: const Text('✅'),
-          title: Text(AppLocalizations.of(context)!.cardAdded),
-        ),
-      );
-
-      return;
-    }
-
-    await handleAddCardError(error);
-    return;
-  }
-
-  Future<void> handleAddCardError(AddCardError error) async {
-    if (error == AddCardError.cardAlreadyExists) {
-      // show error
-      if (!mounted) {
-        return;
-      }
-
-      toastification.showCustom(
-        context: context,
-        autoCloseDuration: const Duration(seconds: 5),
-        alignment: Alignment.bottomCenter,
-        builder: (context, toast) => Toast(
-          icon: const Text('✅'),
-          title: Text(AppLocalizations.of(context)!.cardAlreadyAdded),
-        ),
-      );
-    }
-
-    if (error == AddCardError.cardNotConfigured) {
-      // show error
-      if (!mounted) {
-        return;
-      }
-
-      // show a confirmation modal
-      final confirmed = await showCupertinoDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => CupertinoAlertDialog(
-          title: Text(AppLocalizations.of(context)!.cardNotConfigured),
-          content: Text(
-              'This card is not configured. Would you like to configure it?'),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(AppLocalizations.of(context)!.cancel),
-            ),
-            CupertinoDialogAction(
-              isDefaultAction: true,
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(AppLocalizations.of(context)!.configure),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed == null || !confirmed) {
-        return;
-      }
-
-      await delay(const Duration(milliseconds: 500));
-
-      if (!mounted) {
-        return;
-      }
-
-      final writeResult = await showCupertinoModalPopup<(String, String?)?>(
-        context: context,
-        barrierDismissible: true,
-        builder: (_) => const NFCModal(
-          modalKey: 'modal-nfc-scanner',
-          write: true,
-        ),
-      );
-
-      if (writeResult == null) {
-        await handleAddCardError(AddCardError.unknownError);
-        return;
-      }
-
-      final (uid, uri) = writeResult;
-
-      if (uri == null) {
-        await handleAddCardError(AddCardError.unknownError);
-        return;
-      }
-
-      if (!mounted) {
-        return;
-      }
-
-      toastification.showCustom(
-        context: context,
-        autoCloseDuration: const Duration(seconds: 5),
-        alignment: Alignment.bottomCenter,
-        builder: (context, toast) => Toast(
-          icon: const Text('✅'),
-          title: Text(AppLocalizations.of(context)!.cardConfigured),
-        ),
-      );
-
-      return;
-    }
-
-    if (error == AddCardError.nfcNotAvailable) {
-      // show error
-      if (!mounted) {
-        return;
-      }
-
-      toastification.showCustom(
-        context: context,
-        autoCloseDuration: const Duration(seconds: 5),
-        alignment: Alignment.bottomCenter,
-        builder: (context, toast) => Toast(
-          icon: const Text('❌'),
-          title: Text(AppLocalizations.of(context)!.nfcNotAvailable),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final height = MediaQuery.of(context).size.height;
 
-    final cards = context.watch<CardsState>().cards;
-    final profiles = context.watch<CardsState>().profiles;
-
-    // Get the profile for the selected account, fallback to app profile if not found
-    final selectedProfile = profiles[widget.accountAddress] ??
-        context.select((ProfileState p) => p.appProfile);
     final alias = context.select((ProfileState p) => p.alias);
 
     return DismissibleModalPopup(
@@ -333,13 +162,12 @@ class _ProfileModalState extends State<ProfileModal> {
       onDismissed: (dir) {
         handleClose(context);
       },
-      child: _buildContent(context, cards, selectedProfile, alias),
+      child: _buildContent(context, null, alias),
     );
   }
 
   Widget _buildContent(
     BuildContext context,
-    List<DBCard> cards,
     ProfileV1? profile,
     String alias,
   ) {
@@ -388,7 +216,6 @@ class _ProfileModalState extends State<ProfileModal> {
                       ),
                       ..._buildCardsList(
                         context,
-                        cards,
                         tokenConfig,
                         primaryColor,
                       ),
@@ -482,27 +309,8 @@ class _ProfileModalState extends State<ProfileModal> {
     String alias,
     Color primaryColor,
   ) {
-    final claimingCard = context.watch<CardsState>().claimingCard;
     return Column(
       children: [
-        Button(
-          onPressed: claimingCard ? null : () => handleAddCard(profile),
-          text: AppLocalizations.of(context)!.addCard,
-          labelColor: whiteColor,
-          color: primaryColor,
-          maxWidth: 300,
-          suffix: claimingCard
-              ? const CupertinoActivityIndicator()
-              : Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Image.asset(
-                    'assets/icons/nfc.png',
-                    width: 20,
-                    height: 20,
-                  ),
-                ),
-        ),
-        const SizedBox(height: 12),
         Button(
           onPressed: handleAppSettings,
           text: AppLocalizations.of(context)!.appSettings,
@@ -525,15 +333,10 @@ class _ProfileModalState extends State<ProfileModal> {
 
   List<Widget> _buildCardsList(
     BuildContext context,
-    List<DBCard> cards,
     TokenConfig? tokenConfig,
     Color primaryColor,
   ) {
     final width = MediaQuery.of(context).size.width;
-
-    final updatingCardNameUid = context.watch<CardsState>().updatingCardNameUid;
-
-    final profiles = context.watch<CardsState>().profiles;
 
     final config = context.read<WalletState>().config;
 
@@ -544,11 +347,8 @@ class _ProfileModalState extends State<ProfileModal> {
     final shouldShowAppAccountCard =
         appProfile.account != widget.accountAddress;
 
-    final filteredCards =
-        cards.where((card) => card.account != widget.accountAddress).toList();
-
     return [
-      if (filteredCards.isNotEmpty || shouldShowAppAccountCard)
+      if (shouldShowAppAccountCard)
         SliverToBoxAdapter(
           child: const SizedBox(height: 20),
         ),
@@ -574,44 +374,44 @@ class _ProfileModalState extends State<ProfileModal> {
             ],
           ),
         ),
-      SliverList(
-        delegate: SliverChildBuilderDelegate(
-          childCount: filteredCards.length,
-          (context, index) {
-            final card = filteredCards[index];
+      // SliverList(
+      //   delegate: SliverChildBuilderDelegate(
+      //     childCount: filteredCards.length,
+      //     (context, index) {
+      //       final card = filteredCards[index];
 
-            final tokenConfig = config.getTokenByProject(card.project);
+      //       final tokenConfig = config.getTokenByProject(card.project);
 
-            final cardColor = tokenConfig.color ?? primaryColor;
+      //       final cardColor = tokenConfig.color ?? primaryColor;
 
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (updatingCardNameUid == card.uid)
-                  CardSkeleton(
-                    width: width * 0.75,
-                    color: cardColor,
-                  ),
-                if (updatingCardNameUid != card.uid)
-                  Card(
-                    width: width * 0.75,
-                    uid: card.uid,
-                    color: cardColor,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    profile: profiles[card.account],
-                    onCardPressed: (uid) => handleCardSelect(
-                      widget.accountAddress,
-                      uid,
-                      card.project,
-                      widget.tokenAddress,
-                    ),
-                    logo: tokenConfig?.logo,
-                  ),
-              ],
-            );
-          },
-        ),
-      ),
+      //       return Row(
+      //         mainAxisAlignment: MainAxisAlignment.center,
+      //         children: [
+      //           if (updatingCardNameUid == card.uid)
+      //             CardSkeleton(
+      //               width: width * 0.75,
+      //               color: cardColor,
+      //             ),
+      //           if (updatingCardNameUid != card.uid)
+      //             Card(
+      //               width: width * 0.75,
+      //               uid: card.uid,
+      //               color: cardColor,
+      //               margin: const EdgeInsets.only(bottom: 12),
+      //               profile: profiles[card.account],
+      //               onCardPressed: (uid) => handleCardSelect(
+      //                 widget.accountAddress,
+      //                 uid,
+      //                 card.project,
+      //                 widget.tokenAddress,
+      //               ),
+      //               logo: tokenConfig?.logo,
+      //             ),
+      //         ],
+      //       );
+      //     },
+      //   ),
+      // ),
       SliverToBoxAdapter(
         child: const SizedBox(height: 60),
       ),

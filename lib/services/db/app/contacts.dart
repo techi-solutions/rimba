@@ -106,22 +106,7 @@ class ContactsTable extends DBTable {
 
   @override
   Future<void> migrate(Database db, int oldVersion, int newVersion) async {
-    final migrations = {};
-
-    for (var i = oldVersion + 1; i <= newVersion; i++) {
-      final queries = migrations[i];
-
-      if (queries != null) {
-        for (final query in queries) {
-          try {
-            await db.execute(query);
-          } catch (e, s) {
-            debugPrint('Migration error: $e');
-            debugPrintStack(stackTrace: s);
-          }
-        }
-      }
-    }
+    // No migrations needed for version 1
   }
 
   // Fetch all contacts
