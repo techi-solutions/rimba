@@ -9,6 +9,7 @@ import 'package:pay_app/screens/account/settings/language_screen.dart';
 import 'package:pay_app/screens/interactions/place/order/screen.dart';
 import 'package:pay_app/services/config/config.dart';
 import 'package:pay_app/state/onboarding.dart';
+import 'package:pay_app/state/profile.dart';
 import 'package:pay_app/state/state.dart';
 import 'package:provider/provider.dart';
 
@@ -49,7 +50,7 @@ Future<String?> redirectHandler(
 
       // add timestamp to url to make it unique
       final uniqueUrl = addTimestampToUrl(url);
-      return '/${connectedAccountAddress.hexEip55}?deepLink=${Uri.encodeComponent(uniqueUrl)}';
+      return '/home?deepLink=${Uri.encodeComponent(uniqueUrl)}';
     }
   }
 
@@ -65,8 +66,7 @@ GoRouter createRouter(
   EthereumAddress? accountAddress,
 }) =>
     GoRouter(
-      initialLocation:
-          accountAddress != null ? '/${accountAddress.hexEip55}' : '/',
+      initialLocation: accountAddress != null ? '/home' : '/',
       debugLogDiagnostics: kDebugMode,
       navigatorKey: rootNavigatorKey,
       observers: observers,
@@ -105,23 +105,20 @@ GoRouter createRouter(
           routes: [
             GoRoute(
               name: 'Home',
-              path: '/:account',
+              path: '/home',
               builder: (context, state) {
-                final accountAddress = state.pathParameters['account']!;
-
                 return HomeScreen(
-                  key: Key(accountAddress),
-                  accountAddress: accountAddress,
+                  key: Key('home'),
+                  accountAddress: accountAddress?.hexEip55 ?? '',
                 );
               },
             ),
             GoRoute(
               name: 'MyAccountSettings',
-              path: '/:account/my-account/settings',
+              path: '/my-account/settings',
               builder: (context, state) {
-                final accountAddress = state.pathParameters['account']!;
-
-                return MyAccountSettings(accountAddress: accountAddress);
+                return MyAccountSettings(
+                    accountAddress: accountAddress?.hexEip55 ?? '');
               },
               routes: [
                 GoRoute(
@@ -135,31 +132,32 @@ GoRouter createRouter(
             ),
             GoRoute(
               name: 'EditMyAccount',
-              path: '/:account/my-account/edit',
+              path: '/my-account/edit',
               builder: (context, state) {
                 return const EditAccountScreen();
               },
             ),
             ShellRoute(
               navigatorKey: placeShellNavigatorKey,
-              builder: (context, state, child) => providePlaceState(
-                context,
-                config,
-                state.pathParameters['slug']!,
-                state.pathParameters['account']!,
-                child,
+              builder: (context, state, child) => Consumer<ProfileState>(
+                builder: (context, profileState, _) => providePlaceState(
+                  context,
+                  config,
+                  state.pathParameters['slug']!,
+                  profileState.appAccount.hexEip55,
+                  child,
+                ),
               ),
               routes: [
                 GoRoute(
                   name: 'InteractionWithPlace',
-                  path: '/:account/place/:slug',
+                  path: '/place/:slug',
                   builder: (context, state) {
-                    final myAddress = state.pathParameters['account']!;
                     final slug = state.pathParameters['slug']!;
 
                     return InteractionWithPlaceScreen(
                       slug: slug,
-                      myAddress: myAddress,
+                      myAddress: accountAddress?.hexEip55 ?? '',
                     );
                   },
                   routes: [
@@ -185,9 +183,8 @@ GoRouter createRouter(
             ),
             GoRoute(
               name: 'InteractionWithUser',
-              path: '/:account/user/:withUser',
+              path: '/user/:withUser',
               builder: (context, state) {
-                final myAddress = state.pathParameters['account']!;
                 final userAddress = state.pathParameters['withUser']!;
 
                 final extra = state.extra as Map<String, dynamic>;
@@ -200,7 +197,7 @@ GoRouter createRouter(
                 return ChangeNotifierProvider(
                   create: (_) => TransactionsWithUserState(
                     withUserAddress: userAddress,
-                    myAddress: myAddress,
+                    myAddress: accountAddress?.hexEip55 ?? '',
                   ),
                   child: InteractionWithUserScreen(
                     customName: customName,

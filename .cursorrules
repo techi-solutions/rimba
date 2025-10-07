@@ -1,6 +1,9 @@
 flutter
 - cupertino widgets, no material
 
+project structure and documentation
+- /docs/*
+
 colors
 - lib/theme
 - defined as const that can be globally imported

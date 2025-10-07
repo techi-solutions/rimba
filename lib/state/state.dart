@@ -71,36 +71,41 @@ Widget provideAccountState(
   Config config,
   Widget child,
 ) {
-  final account = state.pathParameters['account']!;
   final token = state.uri.queryParameters['token'];
 
-  return MultiProvider(
-    key: Key('account-$account-$token'),
-    providers: [
-      ChangeNotifierProvider(
-        key: Key('interactions-$account-$token'),
-        create: (_) => InteractionState(
-          account,
-        ),
-      ),
-      ChangeNotifierProvider(
-        key: Key('places-$account-$token'),
-        create: (_) => PlacesState(),
-      ),
-      ChangeNotifierProvider(
-        key: Key('contacts'),
-        create: (_) => ContactsState(config),
-      ),
-      ChangeNotifierProvider(
-        key: Key('account-$account'),
-        create: (_) => AccountState(config),
-      ),
-      ChangeNotifierProvider(
-        key: Key('transactions-$account-$token'),
-        create: (_) => TransactionsState(accountAddress: account),
-      ),
-    ],
-    child: child,
+  return Consumer<ProfileState>(
+    builder: (context, profileState, _) {
+      final account = profileState.appAccount.hexEip55;
+
+      return MultiProvider(
+        key: Key('account-$account-$token'),
+        providers: [
+          ChangeNotifierProvider(
+            key: Key('interactions-$account-$token'),
+            create: (_) => InteractionState(
+              account,
+            ),
+          ),
+          ChangeNotifierProvider(
+            key: Key('places-$account-$token'),
+            create: (_) => PlacesState(),
+          ),
+          ChangeNotifierProvider(
+            key: Key('contacts'),
+            create: (_) => ContactsState(config),
+          ),
+          ChangeNotifierProvider(
+            key: Key('account-$account'),
+            create: (_) => AccountState(config),
+          ),
+          ChangeNotifierProvider(
+            key: Key('transactions-$account-$token'),
+            create: (_) => TransactionsState(accountAddress: account),
+          ),
+        ],
+        child: child,
+      );
+    },
   );
 }
 
