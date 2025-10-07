@@ -2,18 +2,15 @@ import 'dart:async';
 
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/interaction.dart';
-import 'package:pay_app/services/db/app/db.dart';
-import 'package:pay_app/services/db/app/interactions.dart';
-import 'package:pay_app/services/db/app/places_with_menu.dart';
-import 'package:pay_app/services/pay/interactions.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
+import 'package:rimba/models/interaction.dart';
+import 'package:rimba/services/db/app/db.dart';
+import 'package:rimba/services/db/app/interactions.dart';
+import 'package:rimba/services/pay/interactions.dart';
+import 'package:rimba/services/preferences/preferences.dart';
 
 class InteractionState with ChangeNotifier {
   final PreferencesService _preferencesService = PreferencesService();
   final InteractionsTable _interactionsTable = AppDBService().interactions;
-  final PlacesWithMenuTable _placesWithMenuTable =
-      AppDBService().placesWithMenu;
 
   String searchQuery = '';
   List<Interaction> interactions = [];
@@ -134,7 +131,6 @@ class InteractionState with ChangeNotifier {
         // Update places with menu if any
         for (final interaction in remoteInteractions) {
           if (interaction.isPlace && interaction.place != null) {
-            await _placesWithMenuTable.upsert(interaction.place!);
           }
         }
 
@@ -193,7 +189,6 @@ class InteractionState with ChangeNotifier {
         // Update places with menu if any
         for (final interaction in newInteractions) {
           if (interaction.isPlace && interaction.place != null) {
-            await _placesWithMenuTable.upsert(interaction.place!);
           }
         }
 
@@ -216,7 +211,6 @@ class InteractionState with ChangeNotifier {
 
     for (final newInteraction in newInteractions) {
       if (newInteraction.isPlace && newInteraction.place != null) {
-        _placesWithMenuTable.upsert(newInteraction.place!);
       }
 
       if (existingMap.containsKey(newInteraction.withAccount)) {

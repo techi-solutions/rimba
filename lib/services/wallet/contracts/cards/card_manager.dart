@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
-import 'package:pay_app/services/wallet/contracts/cards/interface.dart';
+import 'package:rimba/services/wallet/contracts/cards/interface.dart';
 import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 

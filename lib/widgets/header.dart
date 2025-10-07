@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/blurry_child.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/blurry_child.dart';
 
 class Header extends StatefulWidget {
   final String? title;

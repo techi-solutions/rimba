@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/state/profile.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/text_field.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
+import 'package:rimba/state/profile.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/text_field.dart';
+import 'package:rimba/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 class Description extends StatefulWidget {

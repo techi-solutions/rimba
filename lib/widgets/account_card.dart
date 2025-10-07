@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/profile_circle.dart';
-import 'package:pay_app/widgets/qr/qr.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/profile_circle.dart';
+import 'package:rimba/widgets/qr/qr.dart';
 
 class AccountCard extends StatelessWidget {
   final ProfileV1 profile;

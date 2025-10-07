@@ -1,8 +1,8 @@
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/place.dart';
-import 'package:pay_app/services/pay/places.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
+import 'package:rimba/models/place.dart';
+import 'package:rimba/services/pay/places.dart';
+import 'package:rimba/services/preferences/preferences.dart';
 
 class PlacesState with ChangeNotifier {
   String searchQuery = '';

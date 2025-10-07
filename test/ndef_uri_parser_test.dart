@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pay_app/services/nfc/ndef_uri_parser.dart';
+import 'package:rimba/services/nfc/ndef_uri_parser.dart';
 import 'dart:typed_data';
 
 void main() {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pay_app/services/localization/localization_service.dart';
+import 'package:rimba/services/localization/localization_service.dart';
 
 class LocaleState extends ChangeNotifier {
   Locale? _currentLocale;

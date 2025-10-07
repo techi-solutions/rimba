@@ -1,11 +1,11 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/menu_item.dart';
+import 'package:rimba/models/menu_item.dart';
 
-import 'package:pay_app/models/order.dart';
-import 'package:pay_app/models/place.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/utils/date.dart';
-import 'package:pay_app/widgets/coin_logo.dart';
+import 'package:rimba/models/order.dart';
+import 'package:rimba/models/place.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/utils/date.dart';
+import 'package:rimba/widgets/coin_logo.dart';
 
 class OrderListItem extends StatelessWidget {
   final Order order;

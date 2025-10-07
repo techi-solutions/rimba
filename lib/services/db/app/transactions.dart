@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/transaction.dart' as app_transaction;
-import 'package:pay_app/services/db/db.dart';
+import 'package:rimba/models/transaction.dart' as app_transaction;
+import 'package:rimba/services/db/db.dart';
 import 'package:sqflite/sqflite.dart';
 
 class TransactionsTable extends DBTable {

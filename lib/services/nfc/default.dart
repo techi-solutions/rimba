@@ -6,10 +6,10 @@ import 'package:nfc_manager/ndef_record.dart';
 import 'package:nfc_manager/nfc_manager_ios.dart';
 import 'package:nfc_manager_ndef/nfc_manager_ndef.dart';
 import 'package:nfc_manager/nfc_manager_android.dart';
-import 'package:pay_app/services/nfc/service.dart';
-import 'package:pay_app/services/nfc/ndef_uri_parser.dart';
-import 'package:pay_app/utils/delay.dart';
-import 'package:pay_app/utils/platform.dart';
+import 'package:rimba/services/nfc/service.dart';
+import 'package:rimba/services/nfc/ndef_uri_parser.dart';
+import 'package:rimba/utils/delay.dart';
+import 'package:rimba/utils/platform.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 
 class DefaultNFCService implements NFCService {

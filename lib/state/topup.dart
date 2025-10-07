@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/services/secure/secure.dart';
-import 'package:pay_app/services/sigauth/sigauth.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/services/secure/secure.dart';
+import 'package:rimba/services/sigauth/sigauth.dart';
 
 class TopupState extends ChangeNotifier {
   // instantiate services here

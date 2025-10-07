@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:pay_app/services/api/api.dart';
-import 'package:pay_app/services/config/config.dart';
+import 'package:rimba/services/api/api.dart';
+import 'package:rimba/services/config/config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:pay_app/utils/date.dart';
+import 'package:rimba/utils/date.dart';
 
 class ConfigService {
   static final ConfigService _instance = ConfigService._internal();

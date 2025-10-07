@@ -1,11 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/coin_logo.dart';
-import 'package:pay_app/widgets/profile_circle.dart';
-import 'package:pay_app/widgets/text_input_modal.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/coin_logo.dart';
+import 'package:rimba/widgets/profile_circle.dart';
+import 'package:rimba/widgets/text_input_modal.dart';
+import 'package:rimba/l10n/app_localizations.dart';
 
 enum TapDepth {
   none,

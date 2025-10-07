@@ -1,7 +1,7 @@
-import 'package:pay_app/services/nfc/service.dart';
-import 'package:pay_app/state/scanner.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/utils/delay.dart';
+import 'package:rimba/services/nfc/service.dart';
+import 'package:rimba/state/scanner.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/utils/delay.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';

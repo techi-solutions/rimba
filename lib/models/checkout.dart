@@ -1,5 +1,5 @@
-import 'package:pay_app/models/checkout_item.dart';
-import 'package:pay_app/models/menu_item.dart';
+import 'package:rimba/models/checkout_item.dart';
+import 'package:rimba/models/menu_item.dart';
 
 class Checkout {
   final List<CheckoutItem> items;

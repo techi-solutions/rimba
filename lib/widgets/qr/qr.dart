@@ -1,4 +1,4 @@
-import 'package:pay_app/theme/colors.dart';
+import 'package:rimba/theme/colors.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 

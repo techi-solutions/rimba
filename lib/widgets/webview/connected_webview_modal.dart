@@ -2,8 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/utils/delay.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/utils/delay.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ConnectedWebViewModal extends StatefulWidget {

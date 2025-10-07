@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'package:pay_app/models/place.dart';
-import 'package:pay_app/services/db/db.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
+import 'package:rimba/models/place.dart';
+import 'package:rimba/services/db/db.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 

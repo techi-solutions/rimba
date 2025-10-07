@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/services/secure/secure.dart';
-import 'package:pay_app/services/wallet/wallet.dart';
-import 'package:pay_app/utils/currency.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/services/secure/secure.dart';
+import 'package:rimba/services/wallet/wallet.dart';
+import 'package:rimba/utils/currency.dart';
 import 'package:web3dart/web3dart.dart';
 
 class WalletState with ChangeNotifier {

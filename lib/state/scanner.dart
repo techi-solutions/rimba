@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:pay_app/services/nfc/default.dart';
-import 'package:pay_app/services/nfc/service.dart';
-import 'package:pay_app/utils/platform.dart';
+import 'package:rimba/services/nfc/default.dart';
+import 'package:rimba/services/nfc/service.dart';
+import 'package:rimba/utils/platform.dart';
 
 enum ScanStateType {
   loading,

@@ -2,26 +2,22 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/models/order.dart';
-import 'package:pay_app/routes/home_shell.dart';
-import 'package:pay_app/screens/account/settings/screen.dart';
-import 'package:pay_app/screens/account/settings/language_screen.dart';
-import 'package:pay_app/screens/interactions/place/order/screen.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/state/onboarding.dart';
-import 'package:pay_app/state/state.dart';
+import 'package:rimba/routes/home_shell.dart';
+import 'package:rimba/screens/account/settings/screen.dart';
+import 'package:rimba/screens/account/settings/language_screen.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/state/onboarding.dart';
+import 'package:rimba/state/state.dart';
 import 'package:provider/provider.dart';
 
 // screens
-import 'package:pay_app/screens/home/screen.dart';
-import 'package:pay_app/screens/onboarding/screen.dart';
-import 'package:pay_app/screens/account/edit/screen.dart';
-import 'package:pay_app/screens/interactions/place/screen.dart';
-import 'package:pay_app/screens/interactions/place/menu/screen.dart';
-import 'package:pay_app/screens/interactions/user/screen.dart';
+import 'package:rimba/screens/home/screen.dart';
+import 'package:rimba/screens/onboarding/screen.dart';
+import 'package:rimba/screens/account/edit/screen.dart';
+import 'package:rimba/screens/interactions/user/screen.dart';
 
 // state
-import 'package:pay_app/state/transactions_with_user/transactions_with_user.dart';
+import 'package:rimba/state/transactions_with_user/transactions_with_user.dart';
 import 'package:web3dart/web3dart.dart';
 
 String addTimestampToUrl(String url) {
@@ -59,7 +55,6 @@ Future<String?> redirectHandler(
 GoRouter createRouter(
   GlobalKey<NavigatorState> rootNavigatorKey,
   GlobalKey<NavigatorState> appShellNavigatorKey,
-  GlobalKey<NavigatorState> placeShellNavigatorKey,
   List<NavigatorObserver> observers, {
   required Config config,
   EthereumAddress? accountAddress,
@@ -78,15 +73,6 @@ GoRouter createRouter(
           parentNavigatorKey: rootNavigatorKey,
           builder: (context, state) {
             return const OnboardingScreen();
-          },
-        ),
-        GoRoute(
-          name: 'CardOrder',
-          path: '/order/:orderId',
-          builder: (context, state) {
-            final order = state.extra! as Order;
-
-            return OrderScreen(order: order);
           },
         ),
         ShellRoute(
@@ -139,49 +125,6 @@ GoRouter createRouter(
               builder: (context, state) {
                 return const EditAccountScreen();
               },
-            ),
-            ShellRoute(
-              navigatorKey: placeShellNavigatorKey,
-              builder: (context, state, child) => providePlaceState(
-                context,
-                config,
-                state.pathParameters['slug']!,
-                state.pathParameters['account']!,
-                child,
-              ),
-              routes: [
-                GoRoute(
-                  name: 'InteractionWithPlace',
-                  path: '/:account/place/:slug',
-                  builder: (context, state) {
-                    final myAddress = state.pathParameters['account']!;
-                    final slug = state.pathParameters['slug']!;
-
-                    return InteractionWithPlaceScreen(
-                      slug: slug,
-                      myAddress: myAddress,
-                    );
-                  },
-                  routes: [
-                    GoRoute(
-                      name: 'PlaceMenu',
-                      path: '/menu',
-                      builder: (context, state) {
-                        return const PlaceMenuScreen();
-                      },
-                    ),
-                    GoRoute(
-                      name: 'PlaceOrder',
-                      path: '/order/:orderId',
-                      builder: (context, state) {
-                        final order = state.extra! as Order;
-
-                        return OrderScreen(order: order);
-                      },
-                    ),
-                  ],
-                ),
-              ],
             ),
             GoRoute(
               name: 'InteractionWithUser',

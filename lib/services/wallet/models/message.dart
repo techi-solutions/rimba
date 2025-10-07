@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:pay_app/services/wallet/utils.dart';
-import 'package:pay_app/utils/base64.dart';
-import 'package:pay_app/utils/uint8.dart';
+import 'package:rimba/services/wallet/utils.dart';
+import 'package:rimba/utils/base64.dart';
+import 'package:rimba/utils/uint8.dart';
 import 'package:flutter/foundation.dart';
 import 'package:web3dart/crypto.dart';
 

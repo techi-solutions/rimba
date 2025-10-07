@@ -1,14 +1,14 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/interaction.dart';
-import 'package:pay_app/models/menu_item.dart';
-import 'package:pay_app/models/order.dart';
-import 'package:pay_app/models/transaction.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/profile_circle.dart';
-import 'package:pay_app/widgets/coin_logo.dart';
-import 'package:pay_app/utils/date.dart';
+import 'package:rimba/models/interaction.dart';
+import 'package:rimba/models/menu_item.dart';
+import 'package:rimba/models/order.dart';
+import 'package:rimba/models/transaction.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/profile_circle.dart';
+import 'package:rimba/widgets/coin_logo.dart';
+import 'package:rimba/utils/date.dart';
 
 class TransactionListItem extends StatelessWidget {
   final String myAddress;

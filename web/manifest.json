@@ -1,6 +1,6 @@
 {
-    "name": "pay_app",
-    "short_name": "pay_app",
+    "name": "rimba",
+    "short_name": "rimba",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

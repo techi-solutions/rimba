@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web3dart/crypto.dart';
-import 'package:pay_app/services/session/session.dart';
+import 'package:rimba/utils/session_crypto.dart';
 
 void main() {
   setUp(() async {
@@ -21,10 +21,10 @@ void main() {
           '0x79d7d5c7ac68a4c4bf9bf7402aea177c3c78def1df5f683693f472aea3017af2';
 
       // Generate salt
-      final salt = generateSessionSalt(source, type);
+      final salt = SessionCryptoUtils.generateEmailSessionSalt(source, type);
 
       // When
-      final hash = generateSessionRequestHash(
+      final hash = SessionCryptoUtils.generateEmailSessionRequestHash(
         provider,
         owner,
         salt,
@@ -42,8 +42,8 @@ void main() {
       final type = 'sms';
 
       // When
-      final salt1 = generateSessionSalt(source, type);
-      final salt2 = generateSessionSalt(source, type);
+      final salt1 = SessionCryptoUtils.generateEmailSessionSalt(source, type);
+      final salt2 = SessionCryptoUtils.generateEmailSessionSalt(source, type);
 
       // Then
       expect(bytesToHex(salt1), equals(bytesToHex(salt2)));
@@ -55,17 +55,17 @@ void main() {
       final owner = '0x7aCA83D8270d61824195d459Fef373D9B61A83E0';
       final source = '+32478123123';
       final type = 'sms';
-      final salt = generateSessionSalt(source, type);
+      final salt = SessionCryptoUtils.generateEmailSessionSalt(source, type);
 
       // When
-      final hash1 = generateSessionRequestHash(
+      final hash1 = SessionCryptoUtils.generateEmailSessionRequestHash(
         provider,
         owner,
         salt,
         1741704470,
       );
 
-      final hash2 = generateSessionRequestHash(
+      final hash2 = SessionCryptoUtils.generateEmailSessionRequestHash(
         provider,
         owner,
         salt,
@@ -84,17 +84,17 @@ void main() {
       final source = '+32478123123';
       final type = 'sms';
       final expiry = 1741704470;
-      final salt = generateSessionSalt(source, type);
+      final salt = SessionCryptoUtils.generateEmailSessionSalt(source, type);
 
       // When
-      final hash1 = generateSessionRequestHash(
+      final hash1 = SessionCryptoUtils.generateEmailSessionRequestHash(
         provider,
         owner1,
         salt,
         expiry,
       );
 
-      final hash2 = generateSessionRequestHash(
+      final hash2 = SessionCryptoUtils.generateEmailSessionRequestHash(
         provider,
         owner2,
         salt,

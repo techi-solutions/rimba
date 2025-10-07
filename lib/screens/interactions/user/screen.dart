@@ -1,13 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/state/topup.dart';
-import 'package:pay_app/state/transactions_with_user/selector.dart';
-import 'package:pay_app/state/transactions_with_user/transactions_with_user.dart';
-import 'package:pay_app/state/wallet.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/webview/connected_webview_modal.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/state/topup.dart';
+import 'package:rimba/state/transactions_with_user/selector.dart';
+import 'package:rimba/state/transactions_with_user/transactions_with_user.dart';
+import 'package:rimba/state/wallet.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/webview/connected_webview_modal.dart';
 import 'package:provider/provider.dart';
 
 import 'header.dart';

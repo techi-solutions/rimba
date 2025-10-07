@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/widgets/profile_circle.dart';
+import 'package:rimba/widgets/profile_circle.dart';
 
 class ChatHeader extends StatelessWidget {
   final String? imageUrl;

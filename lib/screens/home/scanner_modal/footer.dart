@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/state/app.dart';
-import 'package:pay_app/state/wallet.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/transaction_input_row.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/state/app.dart';
+import 'package:rimba/state/wallet.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/transaction_input_row.dart';
 import 'package:provider/provider.dart';
 
 class Footer extends StatefulWidget {

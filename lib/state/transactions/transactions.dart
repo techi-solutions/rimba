@@ -1,19 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/order.dart';
-import 'package:pay_app/models/transaction.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/config/service.dart';
-import 'package:pay_app/services/db/app/contacts.dart';
-import 'package:pay_app/services/db/app/db.dart';
-import 'package:pay_app/services/db/app/orders.dart';
-import 'package:pay_app/services/db/app/transactions.dart';
-import 'package:pay_app/services/pay/orders.dart';
-import 'package:pay_app/services/pay/transactions.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/services/wallet/wallet.dart';
+import 'package:rimba/models/order.dart';
+import 'package:rimba/models/transaction.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/config/service.dart';
+import 'package:rimba/services/db/app/contacts.dart';
+import 'package:rimba/services/db/app/db.dart';
+import 'package:rimba/services/db/app/transactions.dart';
+import 'package:rimba/services/pay/orders.dart';
+import 'package:rimba/services/pay/transactions.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/services/wallet/wallet.dart';
 
 class TransactionsState with ChangeNotifier {
   late Config _config;
@@ -21,7 +20,6 @@ class TransactionsState with ChangeNotifier {
 
   final ContactsTable _contacts = AppDBService().contacts;
   final TransactionsTable _transactionsTable = AppDBService().transactions;
-  final OrdersTable _ordersTable = AppDBService().orders;
   final ConfigService _configService = ConfigService();
 
   late TransactionsService transactionsService;
@@ -109,24 +107,11 @@ class TransactionsState with ChangeNotifier {
   }
 
   void fetchOrdersByTxHash(String txHash) async {
-    final order = await _ordersTable.getByTxHash(txHash);
-    if (order != null) {
-      orders[txHash] = order;
-      safeNotifyListeners();
-
-      if (order.createdAt
-          .isBefore(transactionsFromDate.subtract(Duration(days: 7)))) {
-        return;
-      }
-    }
-
     try {
       final apiOrder = await ordersService.getOrdersByTxHash(txHash);
 
       orders[txHash] = apiOrder;
       safeNotifyListeners();
-
-      await _ordersTable.upsert(apiOrder);
     } catch (e) {
       debugPrint('Error fetching orders by tx hash: $e');
     }

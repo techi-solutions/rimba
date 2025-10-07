@@ -1,4 +1,4 @@
-import 'package:pay_app/models/menu_item.dart';
+import 'package:rimba/models/menu_item.dart';
 
 class PlaceMenu {
   final List<MenuItem> menuItems;

@@ -1,6 +1,6 @@
 // test if the qr code parsing
 
-import 'package:pay_app/utils/qr.dart';
+import 'package:rimba/utils/qr.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 

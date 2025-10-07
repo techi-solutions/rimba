@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:math';
 import 'package:archive/archive.dart';
-import 'package:pay_app/utils/uint8.dart';
+import 'package:rimba/utils/uint8.dart';
 import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 

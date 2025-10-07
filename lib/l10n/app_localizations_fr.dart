@@ -159,7 +159,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get termsAndConditions => 'conditions d\'utilisation';
 
   @override
-  String get phoneNumberPlaceholder => '+32475123456';
+  String get emailPlaceholder => 'Enter your email address';
 
   @override
   String get language => 'Langue';
@@ -177,7 +177,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get invalidCode => 'Code invalide';
 
   @override
-  String get sendingSmsCode => 'Envoi du code SMS...';
+  String get sendingEmailCode => 'Sending Email Code...';
 
   @override
   String get loggingIn => 'Connexion en cours...';
@@ -482,9 +482,6 @@ class AppLocalizationsFrBe extends AppLocalizationsFr {
   String get termsAndConditions => 'conditions d\'utilisation';
 
   @override
-  String get phoneNumberPlaceholder => '+32475123456';
-
-  @override
   String get language => 'Langue';
 
   @override
@@ -498,9 +495,6 @@ class AppLocalizationsFrBe extends AppLocalizationsFr {
 
   @override
   String get invalidCode => 'Code invalide';
-
-  @override
-  String get sendingSmsCode => 'Envoi du code SMS...';
 
   @override
   String get loggingIn => 'Connexion en cours...';

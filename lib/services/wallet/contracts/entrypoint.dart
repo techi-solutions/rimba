@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:pay_app/services/wallet/models/userop.dart';
+import 'package:rimba/services/wallet/models/userop.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:smartcontracts/accounts.dart';

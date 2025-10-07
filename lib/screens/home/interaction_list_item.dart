@@ -1,11 +1,11 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/interaction.dart';
-import 'package:pay_app/state/wallet.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/profile_circle.dart';
-import 'package:pay_app/widgets/coin_logo.dart';
+import 'package:rimba/models/interaction.dart';
+import 'package:rimba/state/wallet.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/profile_circle.dart';
+import 'package:rimba/widgets/coin_logo.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:pay_app/utils/date.dart';
+import 'package:rimba/utils/date.dart';
 import 'package:provider/provider.dart';
 
 class InteractionListItem extends StatelessWidget {

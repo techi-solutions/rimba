@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
-import 'package:pay_app/widgets/settings_row.dart';
+import 'package:rimba/l10n/app_localizations.dart';
+import 'package:rimba/widgets/settings_row.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class About extends StatelessWidget {

@@ -1,5 +1,5 @@
-import 'package:pay_app/services/wallet/models/message.dart';
-import 'package:pay_app/services/wallet/utils.dart';
+import 'package:rimba/services/wallet/models/message.dart';
+import 'package:rimba/services/wallet/utils.dart';
 import 'package:web3dart/web3dart.dart';
 
 enum TransactionDirection {

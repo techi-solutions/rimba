@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:pay_app/services/contacts/contacts.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/profile_circle.dart';
+import 'package:rimba/services/contacts/contacts.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/profile_circle.dart';
 
 class ContactListItem extends StatelessWidget {
   final SimpleContact contact;

@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 const whiteColor = Color(0xFFFFFFFF);
 const blackColor = Color(0xFF000000);
 
-const primaryColor = Color(0xFF3431c4);
+const primaryColor = Color.fromARGB(255, 49, 79, 230);
 const warningColor = Color.fromARGB(255, 244, 200, 54);
 const mutedColor = Color(0xFFE0E0E0);
 const iconColor = Color(0xFF4D4D4D);

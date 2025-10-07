@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:pay_app/models/interaction.dart';
-import 'package:pay_app/models/place.dart';
-import 'package:pay_app/models/menu_item.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
+import 'package:rimba/models/interaction.dart';
+import 'package:rimba/models/place.dart';
+import 'package:rimba/models/menu_item.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
 
 class PlaceWithMenu {
   final int placeId;

@@ -31,7 +31,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "brussels.pay.wallet2"
+        applicationId = "rimba.zon3"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdkVersion Math.max(flutter.minSdkVersion, 26)

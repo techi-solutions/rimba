@@ -1,11 +1,11 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/db/app/db.dart';
-import 'package:pay_app/services/photos/photos.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/services/secure/secure.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/services/wallet/wallet.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/db/app/db.dart';
+import 'package:rimba/services/photos/photos.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/services/secure/secure.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/services/wallet/wallet.dart';
 
 class AccountState with ChangeNotifier {
   // instantiate services here

@@ -1,4 +1,4 @@
-// import 'package:pay_app/theme/provider.dart';
+// import 'package:rimba/theme/provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/svg.dart';
 

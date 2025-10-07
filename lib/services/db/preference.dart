@@ -1,4 +1,4 @@
-import 'package:pay_app/services/db/db.dart';
+import 'package:rimba/services/db/db.dart';
 import 'package:sqflite_common/sqflite.dart';
 
 class Preference {

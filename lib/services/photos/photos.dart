@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/services.dart' show rootBundle;
 
-import 'package:pay_app/services/photos/file.dart';
+import 'package:rimba/services/photos/file.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart';

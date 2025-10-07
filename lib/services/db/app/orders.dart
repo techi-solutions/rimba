@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/order.dart' as app_order;
-import 'package:pay_app/services/db/db.dart';
+import 'package:rimba/models/order.dart' as app_order;
+import 'package:rimba/services/db/db.dart';
 import 'package:sqflite/sqflite.dart';
 
 class OrdersTable extends DBTable {

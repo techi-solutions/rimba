@@ -1,25 +1,24 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/state/account.dart';
-import 'package:pay_app/state/app.dart';
-import 'package:pay_app/state/card.dart';
-import 'package:pay_app/state/cards.dart';
-import 'package:pay_app/state/checkout.dart';
-import 'package:pay_app/state/community.dart';
-import 'package:pay_app/state/contacts/contacts.dart';
-import 'package:pay_app/state/interactions/interactions.dart';
-import 'package:pay_app/state/onboarding.dart';
-import 'package:pay_app/state/orders_with_place/orders_with_place.dart';
-import 'package:pay_app/state/places/places.dart';
-import 'package:pay_app/state/profile.dart';
-import 'package:pay_app/state/scanner.dart';
-import 'package:pay_app/state/sending.dart';
-import 'package:pay_app/state/topup.dart';
-import 'package:pay_app/state/transactions/transactions.dart';
-import 'package:pay_app/state/transactions_with_user/transactions_with_user.dart';
-import 'package:pay_app/state/wallet.dart';
-import 'package:pay_app/state/locale_state.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/state/account.dart';
+import 'package:rimba/state/app.dart';
+import 'package:rimba/state/card.dart';
+import 'package:rimba/state/cards.dart';
+import 'package:rimba/state/checkout.dart';
+import 'package:rimba/state/community.dart';
+import 'package:rimba/state/contacts/contacts.dart';
+import 'package:rimba/state/interactions/interactions.dart';
+import 'package:rimba/state/onboarding.dart';
+import 'package:rimba/state/places/places.dart';
+import 'package:rimba/state/profile.dart';
+import 'package:rimba/state/scanner.dart';
+import 'package:rimba/state/sending.dart';
+import 'package:rimba/state/topup.dart';
+import 'package:rimba/state/transactions/transactions.dart';
+import 'package:rimba/state/transactions_with_user/transactions_with_user.dart';
+import 'package:rimba/state/wallet.dart';
+import 'package:rimba/state/locale_state.dart';
 import 'package:provider/provider.dart';
 
 Widget provideAppState(
@@ -132,14 +131,6 @@ Widget providePlaceState(
   return MultiProvider(
     key: Key('place-$account-$slug'),
     providers: [
-      ChangeNotifierProvider(
-        key: Key('orders-with-place-$account-$slug'),
-        create: (_) => OrdersWithPlaceState(
-          config,
-          slug: slug,
-          account: account,
-        ),
-      ),
       ChangeNotifierProvider(
         key: Key('checkout-$account-$slug'),
         create: (_) => CheckoutState(

@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/place_with_menu.dart' as app_place_with_menu;
-import 'package:pay_app/services/db/db.dart';
+import 'package:rimba/models/place_with_menu.dart' as app_place_with_menu;
+import 'package:rimba/services/db/db.dart';
 import 'package:sqflite/sqflite.dart';
 
 class PlacesWithMenuTable extends DBTable {

@@ -1,5 +1,5 @@
-import 'package:pay_app/services/contacts/contacts.dart';
-import 'package:pay_app/state/contacts/contacts.dart';
+import 'package:rimba/services/contacts/contacts.dart';
+import 'package:rimba/state/contacts/contacts.dart';
 
 List<SimpleContact> selectFilteredContacts(ContactsState state) =>
     state.searchQuery.isEmpty

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web3dart/crypto.dart';
-import 'package:pay_app/services/session/session.dart';
+import 'package:rimba/utils/session_crypto.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() {
@@ -23,10 +23,10 @@ void main() {
           '0xe6d82f76be30881b9ea730417c9ab833c37357b26771d4c562ddcd8a18ae15ba';
 
       // Generate salt
-      final salt = generateSessionSalt(source, type);
+      final salt = SessionCryptoUtils.generateEmailSessionSalt(source, type);
 
       // When
-      final hash = generateSessionRequestHash(
+      final hash = SessionCryptoUtils.generateEmailSessionRequestHash(
         provider,
         owner,
         salt,
@@ -44,8 +44,8 @@ void main() {
       final type = 'sms';
 
       // When
-      final salt1 = generateSessionSalt(source, type);
-      final salt2 = generateSessionSalt(source, type);
+      final salt1 = SessionCryptoUtils.generateEmailSessionSalt(source, type);
+      final salt2 = SessionCryptoUtils.generateEmailSessionSalt(source, type);
 
       // Then
       expect(bytesToHex(salt1), equals(bytesToHex(salt2)));
@@ -64,10 +64,10 @@ void main() {
           '0xe6d82f76be30881b9ea730417c9ab833c37357b26771d4c562ddcd8a18ae15ba';
 
       // Step 1: Generate salt
-      final salt = generateSessionSalt(source, type);
+      final salt = SessionCryptoUtils.generateEmailSessionSalt(source, type);
 
       // Step 2: Generate hash
-      final hash = generateSessionRequestHash(
+      final hash = SessionCryptoUtils.generateEmailSessionRequestHash(
         provider,
         owner,
         salt,

@@ -396,11 +396,11 @@ abstract class AppLocalizations {
   /// **'terms and conditions'**
   String get termsAndConditions;
 
-  /// Phone number placeholder
+  /// No description provided for @emailPlaceholder.
   ///
   /// In en, this message translates to:
-  /// **'+32475123456'**
-  String get phoneNumberPlaceholder;
+  /// **'Enter your email address'**
+  String get emailPlaceholder;
 
   /// Language text
   ///
@@ -432,11 +432,11 @@ abstract class AppLocalizations {
   /// **'Invalid code'**
   String get invalidCode;
 
-  /// Sending SMS code message
+  /// No description provided for @sendingEmailCode.
   ///
   /// In en, this message translates to:
-  /// **'Sending SMS Code...'**
-  String get sendingSmsCode;
+  /// **'Sending Email Code...'**
+  String get sendingEmailCode;
 
   /// Logging in message
   ///

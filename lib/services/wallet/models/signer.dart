@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:pay_app/utils/uint8.dart';
+import 'package:rimba/utils/uint8.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:web3dart/crypto.dart';

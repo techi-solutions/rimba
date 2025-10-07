@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:pay_app/services/config/config.dart';
+import 'package:rimba/services/config/config.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart';

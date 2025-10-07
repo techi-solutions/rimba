@@ -1,5 +1,5 @@
-import 'package:pay_app/services/api/api.dart';
-import 'package:pay_app/services/wallet/models/json_rpc.dart';
+import 'package:rimba/services/api/api.dart';
+import 'package:rimba/services/wallet/models/json_rpc.dart';
 import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 

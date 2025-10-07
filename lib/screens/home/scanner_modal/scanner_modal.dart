@@ -1,35 +1,34 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
-import 'package:pay_app/models/card.dart';
-import 'package:pay_app/models/checkout.dart';
-import 'package:pay_app/models/order.dart';
-import 'package:pay_app/models/place.dart';
-import 'package:pay_app/models/place_with_menu.dart';
-import 'package:pay_app/screens/home/card_modal/card_modal.dart';
-import 'package:pay_app/screens/home/scanner_modal/footer.dart';
-import 'package:pay_app/screens/interactions/place/menu/screen.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/db/app/cards.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/state/app.dart';
-import 'package:pay_app/state/cards.dart';
-import 'package:pay_app/state/profile.dart';
-import 'package:pay_app/state/sending.dart';
-import 'package:pay_app/state/state.dart';
-import 'package:pay_app/state/wallet.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/utils/delay.dart';
+import 'package:rimba/models/card.dart';
+import 'package:rimba/models/checkout.dart';
+import 'package:rimba/models/order.dart';
+import 'package:rimba/models/place.dart';
+import 'package:rimba/models/place_with_menu.dart';
+import 'package:rimba/screens/home/card_modal/card_modal.dart';
+import 'package:rimba/screens/home/scanner_modal/footer.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/db/app/cards.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/state/app.dart';
+import 'package:rimba/state/cards.dart';
+import 'package:rimba/state/profile.dart';
+import 'package:rimba/state/sending.dart';
+import 'package:rimba/state/state.dart';
+import 'package:rimba/state/wallet.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/utils/delay.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:pay_app/utils/qr.dart';
-import 'package:pay_app/widgets/button.dart';
-import 'package:pay_app/widgets/cards/card.dart' as cardWidget;
-import 'package:pay_app/widgets/profile_card.dart';
-import 'package:pay_app/widgets/toast/toast.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
+import 'package:rimba/utils/qr.dart';
+import 'package:rimba/widgets/button.dart';
+import 'package:rimba/widgets/cards/card.dart' as cardWidget;
+import 'package:rimba/widgets/profile_card.dart';
+import 'package:rimba/widgets/toast/toast.dart';
+import 'package:rimba/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:toastification/toastification.dart';
 import 'package:web3dart/web3dart.dart';
@@ -508,7 +507,7 @@ class ScannerModalState extends State<ScannerModal>
           config,
           place.place.slug,
           account,
-          PlaceMenuScreen(),
+          Container(), // Placeholder widget since scanner not needed
         );
       },
     );

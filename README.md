@@ -1,4 +1,4 @@
-# pay_app
+# rimba
 
 A new Flutter project.
 

@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:pay_app/models/transaction.dart';
-import 'package:pay_app/services/api/api.dart';
+import 'package:rimba/models/transaction.dart';
+import 'package:rimba/services/api/api.dart';
 
 class TransactionsService {
   final APIService apiService =

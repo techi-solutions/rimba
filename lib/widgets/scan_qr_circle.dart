@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:pay_app/theme/colors.dart';
+import 'package:rimba/theme/colors.dart';
 
 enum TapDepth {
   none,

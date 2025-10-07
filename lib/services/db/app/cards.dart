@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/services/db/db.dart';
+import 'package:rimba/services/db/db.dart';
 import 'package:sqflite/sqflite.dart';
 
 class DBCard {

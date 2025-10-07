@@ -1,30 +1,30 @@
 {
-    "flutter": {
-        "platforms": {
-            "android": {
-                "default": {
-                    "projectId": "brussels-pay-a3c4a",
-                    "appId": "1:152608490284:android:380ab6a5bab8cf147da289",
-                    "fileOutput": "android/app/google-services.json"
-                }
-            },
-            "ios": {
-                "default": {
-                    "projectId": "brussels-pay-a3c4a",
-                    "appId": "1:152608490284:ios:76058ccef1267b437da289",
-                    "uploadDebugSymbols": false,
-                    "fileOutput": "ios/Runner/GoogleService-Info.plist"
-                }
-            },
-            "dart": {
-                "lib/firebase_options.dart": {
-                    "projectId": "brussels-pay-a3c4a",
-                    "configurations": {
-                        "android": "1:152608490284:android:380ab6a5bab8cf147da289",
-                        "ios": "1:152608490284:ios:76058ccef1267b437da289"
-                    }
-                }
-            }
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "rimba-zon3",
+          "appId": "1:930363879595:android:f8b3e18bf000cb611207ee",
+          "fileOutput": "android/app/google-services.json"
         }
+      },
+      "ios": {
+        "default": {
+          "projectId": "rimba-zon3",
+          "appId": "1:930363879595:ios:7d8aeece49c23dee1207ee",
+          "uploadDebugSymbols": true,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "rimba-zon3",
+          "configurations": {
+            "android": "1:930363879595:android:f8b3e18bf000cb611207ee",
+            "ios": "1:930363879595:ios:7d8aeece49c23dee1207ee"
+          }
+        }
+      }
     }
+  }
 }

@@ -2,24 +2,22 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
-import 'package:pay_app/screens/home/profile_bar.dart';
-import 'package:pay_app/screens/home/scanner_modal/scanner_modal.dart'
+import 'package:rimba/l10n/app_localizations.dart';
+import 'package:rimba/screens/home/scanner_modal/scanner_modal.dart'
     as scanner;
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/state/app.dart';
-import 'package:pay_app/state/cards.dart';
-import 'package:pay_app/state/profile.dart';
-import 'package:pay_app/state/state.dart';
-import 'package:pay_app/state/topup.dart';
-import 'package:pay_app/state/wallet.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/utils/delay.dart';
-import 'package:pay_app/widgets/modals/nfc_modal.dart';
-import 'package:pay_app/widgets/scan_qr_circle.dart';
-import 'package:pay_app/widgets/toast/toast.dart';
-import 'package:pay_app/widgets/webview/connected_webview_modal.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/state/app.dart';
+import 'package:rimba/state/cards.dart';
+import 'package:rimba/state/profile.dart';
+import 'package:rimba/state/state.dart';
+import 'package:rimba/state/topup.dart';
+import 'package:rimba/state/wallet.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/utils/delay.dart';
+import 'package:rimba/widgets/modals/nfc_modal.dart';
+import 'package:rimba/widgets/scan_qr_circle.dart';
+import 'package:rimba/widgets/toast/toast.dart';
+import 'package:rimba/widgets/webview/connected_webview_modal.dart';
 import 'package:provider/provider.dart';
 import 'package:toastification/toastification.dart';
 
@@ -447,29 +445,30 @@ class _HomeShellState extends State<HomeShell> {
     return Stack(
       children: [
         widget.child,
-        if (!_hideProfileBar && _pageController != null)
-          AnimatedOpacity(
-            opacity: navigated ? 0 : 1,
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeInOut,
-            onEnd: () {
-              setState(() {
-                _hideProfileBar = navigated;
-              });
-            },
-            child: ProfileBar(
-              selectedAddress: _selectedAddress,
-              onCardChanged: handleCardChanged,
-              pageController: _pageController!,
-              small: small,
-              config: widget.config,
-              loading: false,
-              accountAddress: accountAddress,
-              backgroundColor: backgroundColor,
-              onTopUpTap: handleTopUp,
-              onAddCard: handleAddCard,
-            ),
-          ),
+        // ProfileBar is now integrated into the main scroll view, so we hide it here
+        // if (!_hideProfileBar && _pageController != null)
+        //   AnimatedOpacity(
+        //     opacity: navigated ? 0 : 1,
+        //     duration: const Duration(milliseconds: 120),
+        //     curve: Curves.easeInOut,
+        //     onEnd: () {
+        //       setState(() {
+        //         _hideProfileBar = navigated;
+        //       });
+        //     },
+        //     child: ProfileBar(
+        //       selectedAddress: _selectedAddress,
+        //       onCardChanged: handleCardChanged,
+        //       pageController: _pageController!,
+        //       small: small,
+        //       config: widget.config,
+        //       loading: false,
+        //       accountAddress: accountAddress,
+        //       backgroundColor: backgroundColor,
+        //       onTopUpTap: handleTopUp,
+        //       onAddCard: handleAddCard,
+        //     ),
+        //   ),
         if (!navigated)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),

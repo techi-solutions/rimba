@@ -1,6 +1,6 @@
-import 'package:pay_app/models/transaction.dart';
-import 'package:pay_app/models/interaction.dart';
-import 'package:pay_app/state/transactions/transactions.dart';
+import 'package:rimba/models/transaction.dart';
+import 'package:rimba/models/interaction.dart';
+import 'package:rimba/state/transactions/transactions.dart';
 
 class TransactionsSelector {
   static List<Transaction> getTransactions(TransactionsState state) {

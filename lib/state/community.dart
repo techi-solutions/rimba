@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/config/service.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/config/service.dart';
 
 class CommunityState with ChangeNotifier {
   Config? community;

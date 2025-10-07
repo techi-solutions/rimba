@@ -1,10 +1,10 @@
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/button.dart';
-import 'package:pay_app/widgets/header.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/button.dart';
+import 'package:rimba/widgets/header.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/widgets/modals/dismissible_modal_popup.dart';
+import 'package:rimba/widgets/modals/dismissible_modal_popup.dart';
 
 class TextInputModal extends StatefulWidget {
   final String title;

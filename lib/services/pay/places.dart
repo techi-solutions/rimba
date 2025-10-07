@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:pay_app/models/place.dart';
-import 'package:pay_app/services/api/api.dart';
-import 'package:pay_app/models/place_with_menu.dart';
+import 'package:rimba/models/place.dart';
+import 'package:rimba/services/api/api.dart';
+import 'package:rimba/models/place_with_menu.dart';
 
 class PlacesService {
   final APIService apiService =

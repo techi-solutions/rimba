@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:pay_app/models/checkout.dart';
-import 'package:pay_app/models/order.dart';
-import 'package:pay_app/services/api/api.dart';
-import 'package:pay_app/services/sigauth/sigauth.dart';
+import 'package:rimba/models/checkout.dart';
+import 'package:rimba/models/order.dart';
+import 'package:rimba/services/api/api.dart';
+import 'package:rimba/services/sigauth/sigauth.dart';
 
 class OrdersService {
   final APIService apiService =

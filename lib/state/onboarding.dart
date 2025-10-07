@@ -3,13 +3,13 @@ import 'dart:typed_data';
 
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_libphonenumber/flutter_libphonenumber.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/services/secure/secure.dart';
-import 'package:pay_app/services/session/session.dart';
-import 'package:pay_app/services/wallet/wallet.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/services/secure/secure.dart';
+import 'package:rimba/services/session/email_session_service.dart';
+import 'package:rimba/utils/validation.dart';
+import 'package:rimba/utils/session_crypto.dart';
+import 'package:rimba/services/wallet/wallet.dart';
 import 'package:web3dart/web3dart.dart';
 
 enum SessionRequestStatus {
@@ -26,20 +26,19 @@ class OnboardingState with ChangeNotifier {
   // instantiate services here
   final PreferencesService _preferencesService = PreferencesService();
   final SecureService _secureService = SecureService();
-  late SessionService _sessionService;
+  late EmailSessionService _emailSessionService;
   final Config _config;
 
   // private variables here
-  final TextEditingController _phoneNumberController = TextEditingController(
-    text: dotenv.get('DEFAULT_PHONE_COUNTRY_CODE'),
-  );
-  final TextEditingController _challengeController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _otpController = TextEditingController();
 
-  TextEditingController get phoneNumberController => _phoneNumberController;
-  TextEditingController get challengeController => _challengeController;
+  TextEditingController get emailController => _emailController;
+  TextEditingController get otpController => _otpController;
 
   EthPrivateKey? _sessionRequestPrivateKey;
   Uint8List? _sessionRequestHash;
+  String? _currentEmail;
 
   // constructor here
   OnboardingState(this._config) {
@@ -48,7 +47,7 @@ class OnboardingState with ChangeNotifier {
   }
 
   Future<void> init() async {
-    _sessionService = SessionService(_config);
+    _emailSessionService = EmailSessionService(_config);
   }
 
   bool _mounted = true;
@@ -67,10 +66,10 @@ class OnboardingState with ChangeNotifier {
   // state variables here
   EthereumAddress? connectedAccountAddress;
 
-  bool touched = false;
-  String? regionCode;
-  bool challengeTouched = false;
-  String? challenge;
+  bool emailTouched = false;
+  bool otpTouched = false;
+  String? otp;
+  bool isValidEmail = false;
 
   SessionRequestStatus sessionRequestStatus = SessionRequestStatus.none;
 
@@ -78,14 +77,15 @@ class OnboardingState with ChangeNotifier {
     sessionRequestStatus = SessionRequestStatus.none;
     _sessionRequestHash = null;
     _sessionRequestPrivateKey = null;
+    _currentEmail = null;
 
-    touched = false;
-    regionCode = null;
-    challengeTouched = false;
-    challenge = null;
+    emailTouched = false;
+    isValidEmail = false;
+    otpTouched = false;
+    otp = null;
 
-    phoneNumberController.clear();
-    challengeController.clear();
+    emailController.clear();
+    otpController.clear();
   }
 
   void clearConnectedAccountAddress() {
@@ -98,11 +98,12 @@ class OnboardingState with ChangeNotifier {
     sessionRequestStatus = SessionRequestStatus.none;
     _sessionRequestHash = null;
     _sessionRequestPrivateKey = null;
+    _currentEmail = null;
 
-    challenge = null;
-    challengeTouched = false;
+    otp = null;
+    otpTouched = false;
 
-    challengeController.clear();
+    otpController.clear();
 
     safeNotifyListeners();
   }
@@ -144,43 +145,45 @@ class OnboardingState with ChangeNotifier {
   }
 
   // state methods here
-  Future<void> requestSession(String source) async {
+  Future<void> requestSession(String email) async {
     try {
       sessionRequestStatus = SessionRequestStatus.pending;
       _sessionRequestHash = null;
       safeNotifyListeners();
 
-      String? parsedSource;
-      try {
-        final result = await parse(source);
-
-        parsedSource = result['e164'];
-      } catch (e) {
-        throw Exception('Invalid phone number');
-      }
-      if (parsedSource == null) {
-        throw Exception('Invalid phone number');
+      // Validate email format
+      if (!ValidationUtils.isValidEmail(email)) {
+        throw Exception('Invalid email address');
       }
 
       final random = Random.secure();
       _sessionRequestPrivateKey = EthPrivateKey.createRandom(random);
 
-      final response = await _sessionService.request(
-          _sessionRequestPrivateKey!, parsedSource);
+      final response = await _emailSessionService.request(
+          _sessionRequestPrivateKey!, email);
 
       if (response == null) {
         throw Exception('Failed to request session');
       }
 
-      final sessionRequestTxHash = response.$1;
-      _sessionRequestHash = response.$2;
+      final sessionRequestTxHash = response.sessionRequestTxHash;
+      _sessionRequestHash = response.hash;
+      _currentEmail = response.email;
 
-      final success = await waitForTxSuccess(_config, sessionRequestTxHash);
-      if (!success) {
-        throw Exception('Failed to wait for session request tx to be mined');
+      // Skip blockchain transaction waiting for development mode (mock tx hash)
+      bool success = true;
+      if (ValidationUtils.isMockTxHash(sessionRequestTxHash)) {
+        // This is a mock transaction hash from development mode
+        debugPrint('Skipping blockchain transaction waiting for mock tx hash: $sessionRequestTxHash');
+      } else {
+        // Real transaction hash - wait for it to be mined
+        success = await waitForTxSuccess(_config, sessionRequestTxHash);
+        if (!success) {
+          throw Exception('Failed to wait for session request tx to be mined');
+        }
       }
 
-      final salt = generateSessionSalt(parsedSource, 'sms');
+      final salt = SessionCryptoUtils.generateEmailSessionSalt(email, 'email');
 
       final provider = EthereumAddress.fromHex(
         _config.getPrimarySessionManager().providerAddress,
@@ -204,14 +207,14 @@ class OnboardingState with ChangeNotifier {
       FirebaseCrashlytics.instance.recordError(
         e,
         s,
-        reason: 'Error requesting session',
+        reason: 'Error requesting email session',
       );
       sessionRequestStatus = SessionRequestStatus.failed;
       safeNotifyListeners();
     }
   }
 
-  Future<EthereumAddress?> confirmSession(String challenge) async {
+  Future<EthereumAddress?> confirmSession(String otp) async {
     try {
       if (_sessionRequestPrivateKey == null) {
         throw Exception('Session request private key not found');
@@ -221,30 +224,42 @@ class OnboardingState with ChangeNotifier {
         throw Exception('Session request hash not found');
       }
 
+      if (_currentEmail == null) {
+        throw Exception('Current email not found');
+      }
+
       sessionRequestStatus = SessionRequestStatus.confirming;
       safeNotifyListeners();
 
-      final parsedChallenge = int.parse(challenge);
-
-      final sessionConfirmRequestTxHash = await _sessionService.confirm(
+      final sessionConfirmRequestTxHash = await _emailSessionService.confirm(
         _sessionRequestPrivateKey!,
         _sessionRequestHash!,
-        parsedChallenge,
+        _currentEmail!,
+        otp,
       );
+      
       if (sessionConfirmRequestTxHash == null) {
         throw Exception('Failed to confirm session');
       }
 
-      final success =
-          await waitForTxSuccess(_config, sessionConfirmRequestTxHash);
-      if (!success) {
-        throw Exception('Failed to wait for session request tx to be mined');
+      // Skip blockchain transaction waiting for development mode (mock tx hash)
+      bool success = true;
+      if (ValidationUtils.isMockTxHash(sessionConfirmRequestTxHash)) {
+        // This is a mock transaction hash from development mode
+        debugPrint('Skipping blockchain transaction waiting for mock confirm tx hash: $sessionConfirmRequestTxHash');
+      } else {
+        // Real transaction hash - wait for it to be mined
+        success = await waitForTxSuccess(_config, sessionConfirmRequestTxHash);
+        if (!success) {
+          throw Exception('Failed to wait for session request tx to be mined');
+        }
       }
 
       sessionRequestStatus = SessionRequestStatus.confirmed;
       safeNotifyListeners();
 
       _sessionRequestPrivateKey = null;
+      _currentEmail = null;
 
       final credentials = _secureService.getCredentials();
       if (credentials == null) {
@@ -262,7 +277,7 @@ class OnboardingState with ChangeNotifier {
       FirebaseCrashlytics.instance.recordError(
         e,
         s,
-        reason: 'Error confirming session',
+        reason: 'Error confirming email session',
       );
       sessionRequestStatus = SessionRequestStatus.confirmFailed;
       safeNotifyListeners();
@@ -271,23 +286,15 @@ class OnboardingState with ChangeNotifier {
     }
   }
 
-  Future<void> formatPhoneNumber(String phoneNumber) async {
-    try {
-      final result = await parse(phoneNumber);
-
-      regionCode = result['region_code'];
-    } catch (e) {
-      regionCode = null;
-    }
-
-    touched = true;
-
+  void validateEmail(String email) {
+    emailTouched = true;
+    isValidEmail = ValidationUtils.isValidEmail(email);
     safeNotifyListeners();
   }
 
-  void updateChallenge(String? challenge) {
-    this.challenge = challenge;
-    challengeTouched = true;
+  void updateOTP(String? otp) {
+    otpTouched = true;
+    this.otp = otp;
     safeNotifyListeners();
   }
 }

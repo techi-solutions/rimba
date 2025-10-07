@@ -1,17 +1,18 @@
 import 'dart:convert';
 
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/indexer/signed_request.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/services/session/session.dart';
-import 'package:pay_app/services/wallet/contracts/erc20.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/services/wallet/models/json_rpc.dart';
-import 'package:pay_app/services/wallet/models/paymaster_data.dart';
-import 'package:pay_app/services/wallet/models/userop.dart';
-import 'package:pay_app/services/wallet/utils.dart';
-import 'package:pay_app/utils/delay.dart';
-import 'package:pay_app/utils/uint8.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/indexer/signed_request.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/services/session/session.dart';
+import 'package:rimba/utils/session_crypto.dart';
+import 'package:rimba/services/wallet/contracts/erc20.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/services/wallet/models/json_rpc.dart';
+import 'package:rimba/services/wallet/models/paymaster_data.dart';
+import 'package:rimba/services/wallet/models/userop.dart';
+import 'package:rimba/services/wallet/utils.dart';
+import 'package:rimba/utils/delay.dart';
+import 'package:rimba/utils/uint8.dart';
 import 'package:flutter/foundation.dart';
 import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
@@ -760,7 +761,7 @@ Future<EthereumAddress> getTwoFAAddress(
   final provider = EthereumAddress.fromHex(
     config.getPrimarySessionManager().providerAddress,
   );
-  final salt = generateSessionSalt(source, type);
+  final salt = SessionCryptoUtils.generateEmailSessionSalt(source, type);
 
   final cachedAddress =
       preferences.getTwoFAAddress(bytesToHex(salt, include0x: true));

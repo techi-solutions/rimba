@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:pay_app/services/engine/utils.dart';
+import 'package:rimba/services/engine/utils.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:smartcontracts/contracts/standards/ERC20.g.dart';

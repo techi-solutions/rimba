@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/state/profile.dart';
-import 'package:pay_app/theme/colors.dart';
+import 'package:rimba/state/profile.dart';
+import 'package:rimba/theme/colors.dart';
 
-import 'package:pay_app/widgets/profile_circle.dart';
+import 'package:rimba/widgets/profile_circle.dart';
 import 'package:provider/provider.dart';
 
 class ProfilePicture extends StatefulWidget {

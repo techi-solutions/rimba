@@ -1,35 +1,29 @@
-import 'dart:convert';
-
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/checkout.dart';
-import 'package:pay_app/models/checkout_item.dart';
-import 'package:pay_app/models/order.dart';
-import 'package:pay_app/models/place_with_menu.dart';
-import 'package:pay_app/services/audio/audio.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/db/app/cards.dart';
-import 'package:pay_app/services/db/app/contacts.dart';
-import 'package:pay_app/services/db/app/db.dart';
-import 'package:pay_app/services/db/app/orders.dart';
-import 'package:pay_app/services/db/app/places_with_menu.dart';
-import 'package:pay_app/services/engine/utils.dart';
-import 'package:pay_app/services/pay/orders.dart';
-import 'package:pay_app/services/pay/places.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/services/secure/secure.dart';
-import 'package:pay_app/services/sigauth/sigauth.dart';
-import 'package:pay_app/services/wallet/contracts/erc20.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/services/wallet/utils.dart';
-import 'package:pay_app/services/wallet/wallet.dart';
-import 'package:pay_app/utils/qr.dart';
+import 'package:rimba/models/checkout.dart';
+import 'package:rimba/models/checkout_item.dart';
+import 'package:rimba/models/order.dart';
+import 'package:rimba/models/place_with_menu.dart';
+import 'package:rimba/services/audio/audio.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/db/app/cards.dart';
+import 'package:rimba/services/db/app/contacts.dart';
+import 'package:rimba/services/db/app/db.dart';
+import 'package:rimba/services/engine/utils.dart';
+import 'package:rimba/services/pay/orders.dart';
+import 'package:rimba/services/pay/places.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/services/secure/secure.dart';
+import 'package:rimba/services/sigauth/sigauth.dart';
+import 'package:rimba/services/wallet/contracts/erc20.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/services/wallet/utils.dart';
+import 'package:rimba/services/wallet/wallet.dart';
+import 'package:rimba/utils/qr.dart';
 import 'package:web3dart/web3dart.dart';
 
 class SendingState with ChangeNotifier {
   // instantiate services here
-  final OrdersTable _ordersTable = AppDBService().orders;
   final ContactsTable _contacts = AppDBService().contacts;
-  final PlacesWithMenuTable _places = AppDBService().placesWithMenu;
   final CardsTable _cards = AppDBService().cards;
   late OrdersService _ordersService;
   PlacesService apiService = PlacesService();
@@ -280,20 +274,6 @@ class SendingState with ChangeNotifier {
 
   Future<Order?> loadExternalOrder(String slug, String orderId) async {
     try {
-      final cachedOrder = await _ordersTable.getById(int.parse(orderId));
-
-      if (cachedOrder != null) {
-        order = cachedOrder;
-        safeNotifyListeners();
-
-        _ordersService.getOrder(slug, int.parse(orderId)).then((result) {
-          order = result;
-          safeNotifyListeners();
-        });
-
-        return order;
-      }
-
       final remoteOrder =
           await _ordersService.getOrder(slug, int.parse(orderId));
 
@@ -311,15 +291,12 @@ class SendingState with ChangeNotifier {
 
   Future<PlaceWithMenu?> getPlaceWithMenu(String slug) async {
     try {
-      final place = await _places.getBySlug(slug);
       this.place = place;
 
       if (place != null) {
         apiService.getPlaceAndMenu(slug).then((result) {
           this.place = result;
           safeNotifyListeners();
-
-          _places.upsert(result);
         });
       }
 
@@ -327,8 +304,6 @@ class SendingState with ChangeNotifier {
         final remotePlace = await apiService.getPlaceAndMenu(slug);
         this.place = remotePlace;
         safeNotifyListeners();
-
-        _places.upsert(remotePlace);
       }
 
       return place;
@@ -531,8 +506,6 @@ class SendingState with ChangeNotifier {
           if (newOrder == null) {
             throw Exception('Failed to create order');
           }
-
-          _ordersTable.upsert(newOrder);
         } else {
           if (checkout != null) {
             final newOrder = await _ordersService.createOrder(
@@ -545,8 +518,6 @@ class SendingState with ChangeNotifier {
             if (newOrder == null) {
               throw Exception('Failed to create order');
             }
-
-            _ordersTable.upsert(newOrder);
           }
         }
       } else {
@@ -561,8 +532,6 @@ class SendingState with ChangeNotifier {
           if (newOrder == null) {
             throw Exception('Failed to create order');
           }
-
-          _ordersTable.upsert(newOrder);
         } else {
           if (checkout != null) {
             final newOrder = await _ordersService.createCardOrder(
@@ -576,8 +545,6 @@ class SendingState with ChangeNotifier {
             if (newOrder == null) {
               throw Exception('Failed to create order');
             }
-
-            _ordersTable.upsert(newOrder);
           }
         }
 

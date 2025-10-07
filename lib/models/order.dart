@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
-import 'package:pay_app/models/menu_item.dart';
-import 'package:pay_app/models/place.dart';
+import 'package:rimba/models/menu_item.dart';
+import 'package:rimba/models/place.dart';
 import 'package:web3dart/web3dart.dart' show EthereumAddress;
 
 enum PaymentMode {

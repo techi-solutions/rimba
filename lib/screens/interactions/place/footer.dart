@@ -1,4 +1,5 @@
-import 'package:collection/collection.dart';
+// COMMENTED OUT FOR LOGIN FLOW - NOT NEEDED FOR BASIC LOGIN
+/*import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:pay_app/models/order.dart';
 import 'package:pay_app/models/place.dart';
@@ -376,3 +377,4 @@ class MessageFieldWithAmountToggle extends StatelessWidget {
     );
   }
 }
+*/

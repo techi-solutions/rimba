@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/theme/colors.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/theme/colors.dart';
 
 class AppState with ChangeNotifier {
   // instantiate services here

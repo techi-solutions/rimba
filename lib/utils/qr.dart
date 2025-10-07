@@ -1,4 +1,4 @@
-import 'package:pay_app/services/wallet/utils.dart';
+import 'package:rimba/services/wallet/utils.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class QRData {

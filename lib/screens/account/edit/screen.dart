@@ -1,12 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/state/profile.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/blurry_child.dart';
-import 'package:pay_app/widgets/loaders/progress_bar.dart';
+import 'package:rimba/state/profile.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/blurry_child.dart';
+import 'package:rimba/widgets/loaders/progress_bar.dart';
 
-import 'package:pay_app/widgets/wide_button.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
+import 'package:rimba/widgets/wide_button.dart';
+import 'package:rimba/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'profile_picture.dart';

@@ -3,19 +3,19 @@ import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:pay_app/models/order.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/db/app/cards.dart';
-import 'package:pay_app/services/db/app/contacts.dart';
-import 'package:pay_app/services/db/app/db.dart';
-import 'package:pay_app/services/pay/cards.dart';
-import 'package:pay_app/services/pay/orders.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/services/secure/secure.dart';
-import 'package:pay_app/services/sigauth/sigauth.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/services/wallet/wallet.dart';
-import 'package:pay_app/utils/currency.dart';
+import 'package:rimba/models/order.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/db/app/cards.dart';
+import 'package:rimba/services/db/app/contacts.dart';
+import 'package:rimba/services/db/app/db.dart';
+import 'package:rimba/services/pay/cards.dart';
+import 'package:rimba/services/pay/orders.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/services/secure/secure.dart';
+import 'package:rimba/services/sigauth/sigauth.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/services/wallet/wallet.dart';
+import 'package:rimba/utils/currency.dart';
 import 'package:web3dart/web3dart.dart';
 
 class CardState with ChangeNotifier {

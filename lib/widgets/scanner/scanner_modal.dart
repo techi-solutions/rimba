@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/utils/delay.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/utils/delay.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';

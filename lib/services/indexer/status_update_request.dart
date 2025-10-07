@@ -1,5 +1,5 @@
-import 'package:pay_app/models/transaction.dart';
-import 'package:pay_app/utils/random.dart';
+import 'package:rimba/models/transaction.dart';
+import 'package:rimba/utils/random.dart';
 
 class StatusUpdateRequest {
   final TransactionStatus status;

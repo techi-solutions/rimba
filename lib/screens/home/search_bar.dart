@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
-import 'package:pay_app/widgets/search_bar.dart';
+import 'package:rimba/l10n/app_localizations.dart';
+import 'package:rimba/widgets/search_bar.dart';
 
 class SearchBar extends StatelessWidget {
   final TextEditingController controller;

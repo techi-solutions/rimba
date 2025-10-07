@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/checkout.dart';
-import 'package:pay_app/models/menu_item.dart';
-import 'package:pay_app/models/place.dart';
+import 'package:rimba/models/checkout.dart';
+import 'package:rimba/models/menu_item.dart';
+import 'package:rimba/models/place.dart';
 
 class CheckoutState with ChangeNotifier {
   Checkout checkout;

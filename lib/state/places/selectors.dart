@@ -1,6 +1,6 @@
-import 'package:pay_app/models/place.dart';
-import 'package:pay_app/state/interactions/interactions.dart';
-import 'package:pay_app/state/places/places.dart';
+import 'package:rimba/models/place.dart';
+import 'package:rimba/state/interactions/interactions.dart';
+import 'package:rimba/state/places/places.dart';
 
 List<Place> Function(PlacesState) selectFilteredPlaces(
     InteractionState interactionsState) {

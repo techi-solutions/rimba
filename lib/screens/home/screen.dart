@@ -6,43 +6,44 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:pay_app/models/interaction.dart';
-import 'package:pay_app/models/order.dart';
-import 'package:pay_app/screens/home/contact_list_item.dart';
-import 'package:pay_app/screens/home/profile_list_item.dart';
-import 'package:pay_app/screens/home/profile_modal.dart';
-import 'package:pay_app/screens/home/transaction_list_item.dart';
-import 'package:pay_app/services/contacts/contacts.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/state/app.dart';
-import 'package:pay_app/state/cards.dart';
-import 'package:pay_app/state/contacts/contacts.dart';
-import 'package:pay_app/state/contacts/selectors.dart';
-import 'package:pay_app/state/interactions/interactions.dart';
-import 'package:pay_app/state/interactions/selectors.dart';
-import 'package:pay_app/state/onboarding.dart';
-import 'package:pay_app/state/places/places.dart';
-import 'package:pay_app/state/places/selectors.dart';
-import 'package:pay_app/state/state.dart';
-import 'package:pay_app/state/topup.dart';
-import 'package:pay_app/state/transactions/transactions.dart';
-import 'package:pay_app/state/wallet.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/utils/delay.dart';
-import 'package:pay_app/widgets/modals/confirm_modal.dart';
-import 'package:pay_app/screens/home/scanner_modal/scanner_modal.dart';
-import 'package:pay_app/widgets/toast/toast.dart';
-import 'package:pay_app/widgets/webview/connected_webview_modal.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
+import 'package:rimba/models/order.dart';
+import 'package:rimba/models/card.dart';
+import 'package:rimba/screens/home/contact_list_item.dart';
+import 'package:rimba/screens/home/profile_list_item.dart';
+import 'package:rimba/screens/home/profile_modal.dart';
+import 'package:rimba/screens/home/transaction_list_item.dart';
+import 'package:rimba/models/simple_lending_group.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/state/app.dart';
+import 'package:rimba/state/cards.dart';
+import 'package:rimba/state/contacts/contacts.dart';
+import 'package:rimba/state/contacts/selectors.dart';
+import 'package:rimba/state/simple_lending_state.dart';
+import 'package:rimba/state/onboarding.dart';
+import 'package:rimba/state/places/places.dart';
+import 'package:rimba/state/state.dart';
+import 'package:rimba/state/topup.dart';
+import 'package:rimba/state/transactions/transactions.dart';
+import 'package:rimba/state/wallet.dart';
+import 'package:rimba/state/profile.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/cards/card.dart' as card_widget;
+import 'package:rimba/widgets/cards/card_skeleton.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/utils/delay.dart';
+import 'package:rimba/widgets/modals/confirm_modal.dart';
+import 'package:rimba/screens/home/scanner_modal/scanner_modal.dart';
+import 'package:rimba/widgets/toast/toast.dart';
+import 'package:rimba/widgets/webview/connected_webview_modal.dart';
+import 'package:rimba/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:toastification/toastification.dart';
 import 'package:universal_io/io.dart';
 import 'package:web3dart/web3dart.dart';
-import 'package:pay_app/models/transaction.dart' as tx;
+import 'package:rimba/models/transaction.dart' as tx;
 
 import 'search_bar.dart';
-import 'interaction_list_item.dart';
-import 'place_list_item.dart';
 
 class HomeScreen extends StatefulWidget {
   final String accountAddress;
@@ -74,13 +75,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   late AppState _appState;
   late OnboardingState _onboardingState;
-  late InteractionState _interactionState;
   late PlacesState _placesState;
   late WalletState _walletState;
   late ContactsState _contactsState;
   late TopupState _topupState;
   late CardsState _cardsState;
   late TransactionsState _transactionsState;
+  late ProfileState _profileState; // Used in _buildCardWidget method
+  late SimpleLendingState _simpleLendingState;
 
   bool _handlingExpiredCredentials = false;
   bool _stopInitRetries = false;
@@ -121,13 +123,19 @@ class _HomeScreenState extends State<HomeScreen>
   void _initState() {
     _appState = context.read<AppState>();
     _onboardingState = context.read<OnboardingState>();
-    _interactionState = context.read<InteractionState>();
     _placesState = context.read<PlacesState>();
     _walletState = context.read<WalletState>();
     _contactsState = context.read<ContactsState>();
     _topupState = context.read<TopupState>();
     _cardsState = context.read<CardsState>();
     _transactionsState = context.read<TransactionsState>();
+    _profileState = context.read<ProfileState>();
+    _simpleLendingState = SimpleLendingState();
+    _simpleLendingState.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   Future<void> onLoad() async {
@@ -144,8 +152,8 @@ class _HomeScreenState extends State<HomeScreen>
 
     final currentTokenAddress = context.read<AppState>().currentTokenAddress;
 
-    _interactionState.startPolling(updateBalance: _walletState.updateBalance);
-    _interactionState.getInteractions(token: currentTokenAddress);
+    // Initialize simple lending groups (local data only)
+    _simpleLendingState.initialize();
     _cardsState.fetchCards(tokenAddress: currentTokenAddress);
 
     // Initialize transactions for the current account
@@ -157,11 +165,8 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> handleRefresh() async {
     HapticFeedback.lightImpact();
 
-    _interactionState.startPolling(updateBalance: _walletState.updateBalance);
-
-    final currentTokenAddress = context.read<AppState>().currentTokenAddress;
-
-    await _interactionState.getInteractions(token: currentTokenAddress);
+    // Refresh simple lending groups
+    _simpleLendingState.refresh();
 
     // Refresh transactions as well
     await _transactionsState.refreshTransactions();
@@ -201,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen>
         // Stop the scanner when the app is paused.
         // Also stop the barcode events subscription.
         _stopInitRetries = true;
-        _interactionState.stopPolling();
+        // Interaction polling removed
     }
   }
 
@@ -214,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     _debouncer.dispose();
 
-    _interactionState.stopPolling();
+    // Interaction polling removed
 
     _searchFocusNode.removeListener(_searchListener);
     _searchFocusNode.dispose();
@@ -228,6 +233,8 @@ class _HomeScreenState extends State<HomeScreen>
     _cardScrollController.dispose();
 
     _backgroundColorController.dispose();
+
+    _simpleLendingState.dispose();
 
     super.dispose();
   }
@@ -310,108 +317,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void goToChatHistory(String? myAddress, Interaction interaction) {
-    if (interaction.isTreasury) {
-      handleInteractionWithPlace(
-        myAddress,
-        'topup',
-      );
-      return;
-    }
 
-    if (interaction.isPlace && interaction.placeId != null) {
-      handleInteractionWithPlace(
-        myAddress,
-        interaction.place?.slug ?? '',
-      );
-      return;
-    }
-
-    handleInteractionWithUser(myAddress, interaction.withAccount);
-  }
-
-  void handleInteractionWithPlace(
-    String? myAddress,
-    String slug,
-  ) async {
-    if (myAddress == null) {
-      return;
-    }
-
-    _contactsState.clearContacts();
-
-    final navigator = GoRouter.of(context);
-
-    _stopInitRetries = true;
-
-    await navigator.push('/$myAddress/place/$slug');
-
-    _stopInitRetries = false;
-
-    clearSearch();
-  }
-
-  Future<void> handleInteractionWithContact(
-    String? myAddress,
-    SimpleContact contact,
-  ) async {
-    if (myAddress == null) {
-      return;
-    }
-
-    _contactsState.clearContacts();
-
-    _stopInitRetries = true;
-
-    final account = await _contactsState.getContactAddress(
-      contact.phone,
-      'sms',
-    );
-
-    _stopInitRetries = false;
-
-    if (account == null) {
-      return;
-    }
-
-    handleInteractionWithUser(
-      myAddress,
-      account.hexEip55,
-      name: contact.name,
-      phone: contact.phone,
-      photo: contact.photo,
-    );
-  }
-
-  void handleInteractionWithUser(
-    String? myAddress,
-    String account, {
-    String? name,
-    String? phone,
-    Uint8List? photo,
-    String? imageUrl,
-  }) async {
-    if (myAddress == null) {
-      return;
-    }
-
-    _contactsState.clearContacts();
-
-    _stopInitRetries = true;
-
-    final navigator = GoRouter.of(context);
-
-    await navigator.push('/$myAddress/user/$account', extra: {
-      'name': name,
-      'phone': phone,
-      'photo': photo,
-      'imageUrl': imageUrl,
-    });
-
-    _stopInitRetries = false;
-
-    clearSearch();
-  }
 
   Future<void> handleProfileTap(
     String myAddress, {
@@ -570,24 +476,17 @@ class _HomeScreenState extends State<HomeScreen>
 
     await delay(const Duration(milliseconds: 500));
 
-    _interactionState.clearSearch();
     _placesState.clearSearch();
     _contactsState.clearSearch();
   }
 
   void handleSearch(String query) {
-    _interactionState.startSearching();
     _debouncer.resetDebounce(() {
-      _interactionState.setSearchQuery(query);
       _placesState.setSearchQuery(query);
       _contactsState.setSearchQuery(query);
     });
   }
 
-  void handleInteractionTap(String? myAddress, Interaction interaction) {
-    goToChatHistory(myAddress, interaction);
-    _interactionState.markInteractionAsRead(interaction);
-  }
 
   void handleTransactionTap(
     String? myAddress,
@@ -608,6 +507,312 @@ class _HomeScreenState extends State<HomeScreen>
     FocusScope.of(context).unfocus();
   }
 
+  Widget _buildCardWidget(BuildContext context, String? myAddress) {
+    if (myAddress == null) return const SizedBox.shrink();
+
+    final width = MediaQuery.of(context).size.width;
+    final primaryColor = context.select<AppState, Color>(
+      (state) => state.tokenPrimaryColor,
+    );
+    
+    final cards = context.watch<CardsState>().cards;
+    final cardBalances = context.watch<CardsState>().cardBalances;
+    final appProfile = context.watch<ProfileState>().appProfile;
+    final updatingCardName = context.watch<CardsState>().updatingCardName;
+    
+    final tokenConfig = context.select<AppState, TokenConfig>(
+      (state) => state.currentTokenConfig,
+    );
+    
+    final balance = context.select<WalletState, String>(
+      (state) => state.tokenBalances[tokenConfig.address] ?? '0.0',
+    );
+
+    // Create list of all cards (app profile + card profiles)
+    final List<CardInfo> cardInfoList = [
+      CardInfo(
+        uid: 'main',
+        account: appProfile.account,
+        profile: appProfile,
+        balance: balance,
+        project: 'main',
+      ),
+      ...cards.map(
+        (card) {
+          return CardInfo(
+            uid: card.uid,
+            account: card.account,
+            profile: ProfileV1.cardProfile(card.account, card.uid),
+            balance: cardBalances[card.account] ?? '0.0',
+            project: card.project,
+          );
+        },
+      ),
+    ];
+
+    // Find the current card (first one for now, can be made dynamic later)
+    final currentCard = cardInfoList.isNotEmpty ? cardInfoList.first : null;
+    
+    if (currentCard == null) return const SizedBox.shrink();
+    
+    final isAppAccount = appProfile.account == currentCard.account;
+    double cardWidth = width * 0.85;
+
+    if (appProfile.isAnonymous || updatingCardName) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: CardSkeleton(
+          width: cardWidth,
+          color: primaryColor,
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Center(
+        child: card_widget.Card(
+          width: cardWidth,
+          uid: currentCard.uid,
+          color: primaryColor,
+          profile: currentCard.profile,
+          usernamePrefix: isAppAccount ? '@' : '#',
+          icon: CupertinoIcons.plus, // Always show + icon for creating new groups
+          logo: tokenConfig.logo,
+          balance: currentCard.balance,
+          onCardBalanceTapped: () => handleBalanceTap(context, myAddress),
+          onCardPressed: (uid) => handleCreateNewGroup(context, myAddress),
+        ),
+      ),
+    );
+  }
+
+  Future<void> handleBalanceTap(BuildContext context, String myAddress) async {
+    // Handle balance tap - could show token selection or balance details
+    HapticFeedback.lightImpact();
+    // Implementation can be added here if needed
+  }
+
+  Future<void> handleGroupTap(String? myAddress, SimpleLendingGroup group) async {
+    if (myAddress == null) return;
+    
+    HapticFeedback.lightImpact();
+    
+    // Navigate to group details
+    final navigator = GoRouter.of(context);
+    // TODO: Replace with actual group detail route
+    navigator.push('/$myAddress/group/${group.id}');
+  }
+
+  Widget _buildGroupListItem(SimpleLendingGroup group, String? myAddress) {
+    
+    // Get status color
+    Color statusColor;
+    String statusText;
+    switch (group.status) {
+      case SimpleGroupStatus.forming:
+        statusColor = CupertinoColors.systemOrange;
+        statusText = 'Forming';
+        break;
+      case SimpleGroupStatus.active:
+        statusColor = CupertinoColors.systemGreen;
+        statusText = 'Active';
+        break;
+      case SimpleGroupStatus.completed:
+        statusColor = CupertinoColors.systemBlue;
+        statusText = 'Completed';
+        break;
+    }
+    
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      onPressed: () => handleGroupTap(myAddress, group),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            // Group image or placeholder
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: statusColor, width: 2),
+              ),
+              child: group.imageUrl != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: Image.network(
+                        group.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          CupertinoIcons.group,
+                          color: statusColor,
+                          size: 30,
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      CupertinoIcons.group,
+                      color: statusColor,
+                      size: 30,
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          group.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          statusText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: statusColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                            Text(
+                              '€${group.baseAmount.toStringAsFixed(0)}/month • ${group.members.length}/${group.totalMembers} members',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (group.isActive)
+                    const SizedBox(height: 4),
+                  if (group.isActive)
+                    Text(
+                      'Round ${group.currentRound}/${group.totalRounds} • ${group.progressPercentage.toStringAsFixed(0)}% complete',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: CupertinoColors.systemGrey2,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              children: [
+                const Icon(
+                  CupertinoIcons.chevron_right,
+                  color: CupertinoColors.systemGrey,
+                ),
+                if (group.isActive)
+                  const SizedBox(height: 4),
+                if (group.isActive)
+                  Text(
+                    '€${group.totalPoolAmount.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: CupertinoColors.systemGreen,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> handleCreateNewGroup(BuildContext context, String myAddress) async {
+    HapticFeedback.heavyImpact();
+    
+    // Show options for testing
+    final result = await showCupertinoDialog<String?>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Group Actions'),
+        content: const Text('Choose an action for testing:'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop('create'),
+            child: const Text('Create New Group'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop('reset'),
+            child: const Text('Reset Test Data'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == 'create') {
+      // Create a test group
+      HapticFeedback.heavyImpact();
+      
+      _simpleLendingState.addTestGroup();
+      
+      if (mounted) {
+        showCupertinoDialog(
+          context: context,
+          builder: (dialogContext) => CupertinoAlertDialog(
+            title: const Text('Success'),
+            content: const Text('Created new test group!'),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } else if (result == 'reset') {
+      // Reset test data
+      HapticFeedback.heavyImpact();
+      _simpleLendingState.resetData();
+      
+      if (mounted) {
+        showCupertinoDialog(
+          context: context,
+          builder: (dialogContext) => CupertinoAlertDialog(
+            title: const Text('Success'),
+            content: const Text('Test data has been reset!'),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final expiredCredentials =
@@ -618,20 +823,16 @@ class _HomeScreenState extends State<HomeScreen>
 
     final safeTopPadding = MediaQuery.of(context).padding.top;
 
-    final loading = context.select((WalletState state) => state.loading);
 
-    final interactions = context.select(sortByUnreadAndDate);
-
-    final interactionsState = context.select((InteractionState state) => state);
-
-    final places = context.select(selectFilteredPlaces(interactionsState));
-    final contacts = context.select(selectFilteredContacts);
+    // Get lending groups from simple state
+    final lendingGroups = _simpleLendingState.groups;
+    final groupsLoading = _simpleLendingState.loading;
+    
     final customContact = context.select(selectCustomContact);
     final customContactProfileByUsername = context
         .select((ContactsState state) => state.customContactProfileByUsername);
 
-    final searching =
-        context.select((InteractionState state) => state.searching);
+    final searching = _searchController.text.isNotEmpty;
 
     final myAddress =
         context.select((WalletState state) => state.address?.hexEip55);
@@ -656,9 +857,7 @@ class _HomeScreenState extends State<HomeScreen>
     final tokenConfig = config.getToken(currentTokenAddress);
 
     final nothingFound = _searchController.text.isNotEmpty &&
-        interactions.isEmpty &&
-        places.isEmpty &&
-        contacts.isEmpty;
+        lendingGroups.isEmpty;
 
     return AnimatedBuilder(
       animation: _backgroundColorAnimation,
@@ -692,7 +891,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   onCancel: clearSearch,
                                   isSearching: isSearching,
                                   searching:
-                                      searching || _interactionState.syncing,
+                                      searching,
                                   backgroundColor:
                                       _backgroundColorAnimation.value,
                                   isCard: isCard,
@@ -768,7 +967,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   onCancel: clearSearch,
                                   isSearching: isSearching,
                                   searching:
-                                      searching || _interactionState.syncing,
+                                      searching,
                                   backgroundColor:
                                       _backgroundColorAnimation.value,
                                   isCard: isCard,
@@ -777,17 +976,19 @@ class _HomeScreenState extends State<HomeScreen>
                               CupertinoSliverRefreshControl(
                                 onRefresh: handleRefresh,
                               ),
+                              // Add the card at the top of the list
+                              SliverToBoxAdapter(
+                                child: _buildCardWidget(context, myAddress),
+                              ),
                               if (customContact != null)
                                 SliverList(
                                   delegate: SliverChildBuilderDelegate(
                                     childCount: 1,
                                     (context, index) => ContactListItem(
                                       contact: customContact,
-                                      onTap: (contact) =>
-                                          handleInteractionWithContact(
-                                        myAddress,
-                                        contact,
-                                      ),
+                                      onTap: (contact) => {
+                                        // TODO: Handle contact tap
+                                      },
                                     ),
                                   ),
                                 ),
@@ -797,56 +998,23 @@ class _HomeScreenState extends State<HomeScreen>
                                     childCount: 1,
                                     (context, index) => ProfileListItem(
                                       profile: customContactProfileByUsername,
-                                      onTap: (profile) =>
-                                          handleInteractionWithUser(
-                                        myAddress,
-                                        profile.account,
-                                      ),
+                                      onTap: (profile) => {
+                                        // TODO: Handle profile tap
+                                      },
                                     ),
                                   ),
                                 ),
+                              // Display lending groups from local database
                               SliverList(
                                 delegate: SliverChildBuilderDelegate(
-                                  childCount: interactions.length,
-                                  (context, index) => InteractionListItem(
-                                    interaction: interactions[index],
-                                    onTap: (interaction) =>
-                                        handleInteractionTap(
-                                            myAddress, interaction),
+                                  childCount: lendingGroups.length,
+                                  (context, index) => _buildGroupListItem(
+                                    lendingGroups[index],
+                                    myAddress,
                                   ),
                                 ),
                               ),
-                              SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  childCount: places.length,
-                                  (context, index) => PlaceListItem(
-                                    place: places[index],
-                                    onTap: (place) =>
-                                        handleInteractionWithPlace(
-                                      myAddress,
-                                      place.slug,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (contacts.isNotEmpty && isSearching)
-                                SliverList(
-                                  delegate: SliverChildBuilderDelegate(
-                                    childCount: contacts.length,
-                                    (context, index) => ContactListItem(
-                                      contact: contacts[index],
-                                      onTap: (contact) =>
-                                          handleInteractionWithContact(
-                                        myAddress,
-                                        contact,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              if (loading &&
-                                  places.isEmpty &&
-                                  interactions.isEmpty &&
-                                  contacts.isEmpty)
+                              if (groupsLoading && lendingGroups.isEmpty)
                                 SliverFillRemaining(
                                   child: Center(
                                       child: CupertinoActivityIndicator()),

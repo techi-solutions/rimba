@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
-import 'package:pay_app/state/locale_state.dart';
+import 'package:rimba/l10n/app_localizations.dart';
+import 'package:rimba/state/locale_state.dart';
 import 'package:provider/provider.dart';
 
 class LanguageScreen extends StatefulWidget {

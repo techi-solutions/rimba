@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/theme/colors.dart';
+import 'package:rimba/theme/colors.dart';
 
 class Toast extends StatelessWidget {
   final Widget? icon;

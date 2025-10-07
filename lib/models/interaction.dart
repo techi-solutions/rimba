@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:pay_app/models/place_with_menu.dart';
-import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:pay_app/services/wallet/models/userop.dart';
+import 'package:rimba/models/place_with_menu.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
+import 'package:rimba/services/wallet/models/userop.dart';
 
 enum ExchangeDirection {
   sent,

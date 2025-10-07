@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/models/interaction.dart' as app_interaction;
-import 'package:pay_app/services/db/db.dart';
+import 'package:rimba/models/interaction.dart' as app_interaction;
+import 'package:rimba/services/db/db.dart';
 import 'package:sqflite/sqflite.dart';
 
 class InteractionsTable extends DBTable {

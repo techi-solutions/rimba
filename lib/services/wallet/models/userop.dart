@@ -1,4 +1,4 @@
-import 'package:pay_app/services/wallet/utils.dart';
+import 'package:rimba/services/wallet/utils.dart';
 import 'package:flutter/services.dart';
 import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';

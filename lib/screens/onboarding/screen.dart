@@ -1,16 +1,16 @@
 import 'package:country_flags/country_flags.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/state/community.dart';
-import 'package:pay_app/state/onboarding.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/utils/delay.dart';
-import 'package:pay_app/widgets/coin_logo.dart';
-import 'package:pay_app/widgets/wide_button.dart';
-import 'package:pay_app/widgets/text_field.dart';
+import 'package:rimba/state/community.dart';
+import 'package:rimba/state/onboarding.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/utils/delay.dart';
+import 'package:rimba/widgets/coin_logo.dart';
+import 'package:rimba/widgets/wide_button.dart';
+import 'package:rimba/widgets/text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
+import 'package:rimba/l10n/app_localizations.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -83,21 +83,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     FocusScope.of(context).unfocus();
   }
 
-  void handleRequest(String source) async {
-    await _onboardingState.requestSession(source);
-    _onboardingState.updateChallenge(null);
+  void handleRequest(String email) async {
+    await _onboardingState.requestSession(email);
+    _onboardingState.updateOTP(null);
 
     await delay(const Duration(milliseconds: 100));
 
     _challengeFocusNode.requestFocus();
   }
 
-  void handleConfirm(String challenge) async {
+  void handleConfirm(String otp) async {
     final navigator = GoRouter.of(context);
 
     await delay(const Duration(milliseconds: 50));
 
-    final account = await _onboardingState.confirmSession(challenge);
+    final account = await _onboardingState.confirmSession(otp);
 
     if (account != null && !_navigating) {
       _navigating = true;
@@ -117,12 +117,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _onboardingState.retry();
   }
 
-  void handlePhoneNumberChange(String phoneNumber) {
-    _onboardingState.formatPhoneNumber(phoneNumber);
+  void handleEmailChange(String email) {
+    _onboardingState.validateEmail(email);
   }
 
-  void handleChallengeChange(String challenge) {
-    _onboardingState.updateChallenge(challenge);
+  void handleOTPChange(String otp) {
+    _onboardingState.updateOTP(otp);
   }
 
   @override
@@ -137,28 +137,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final sessionRequestStatus =
         context.select((OnboardingState state) => state.sessionRequestStatus);
 
-    final phoneNumberController =
-        context.read<OnboardingState>().phoneNumberController;
-    final challengeController =
-        context.read<OnboardingState>().challengeController;
+    final emailController =
+        context.read<OnboardingState>().emailController;
+    final otpController =
+        context.read<OnboardingState>().otpController;
 
-    final challenge =
-        context.select((OnboardingState state) => state.challenge);
+    final otp =
+        context.select((OnboardingState state) => state.otp);
 
-    final touched = context.select((OnboardingState state) => state.touched);
-    final regionCode =
-        context.select((OnboardingState state) => state.regionCode);
+    final emailTouched = context.select((OnboardingState state) => state.emailTouched);
+    final isValidEmail = context.select((OnboardingState state) => state.isValidEmail);
 
-    final challengeTouched =
-        context.select((OnboardingState state) => state.challengeTouched);
+    final otpTouched =
+        context.select((OnboardingState state) => state.otpTouched);
 
-    final isValidPhoneNumber = regionCode != null;
-    final isValidChallenge = challenge != null && challenge.length == 6;
+    final isValidOTP = otp != null && otp.length == 6;
 
-    if (challenge != _previousChallenge && isValidChallenge) {
-      handleConfirm(challenge);
+    if (otp != _previousChallenge && isValidOTP) {
+      handleConfirm(otp);
     }
-    _previousChallenge = challenge;
+    _previousChallenge = otp;
 
     return CupertinoPageScaffold(
       backgroundColor: whiteColor,
@@ -248,15 +246,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         ],
                       ),
                       const SizedBox(height: 20),
-                      // Phone Number Input
+                      // Email Input
                       if (sessionRequestStatus == SessionRequestStatus.none ||
                           sessionRequestStatus ==
                               SessionRequestStatus.pending ||
                           sessionRequestStatus == SessionRequestStatus.failed)
                         CustomTextField(
-                          controller: phoneNumberController,
+                          controller: emailController,
                           placeholder: AppLocalizations.of(context)!
-                              .phoneNumberPlaceholder,
+                              .emailPlaceholder,
                           focusNode: _focusNode, // Use the focus node
                           autofocus:
                               false, // We'll focus manually after animation
@@ -265,9 +263,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(30),
                             border: Border.all(
-                              color: !touched
+                              color: !emailTouched
                                   ? mutedColor
-                                  : touched && isValidPhoneNumber
+                                  : emailTouched && isValidEmail
                                       ? (sessionRequestStatus ==
                                               SessionRequestStatus.pending
                                           ? transparentColor
@@ -282,39 +280,32 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                     SessionRequestStatus.pending
                                 ? textMutedColor
                                 : textColor,
-                            fontWeight: touched && isValidPhoneNumber
+                            fontWeight: emailTouched && isValidEmail
                                 ? FontWeight.w700
                                 : FontWeight.w500,
-                            letterSpacing: 2,
+                            letterSpacing: 1,
                           ),
                           placeholderStyle: TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.w500,
                             color: textMutedColor,
-                            letterSpacing: 2,
+                            letterSpacing: 1,
                           ),
                           prefix: Padding(
                             padding: const EdgeInsets.only(left: 8.0),
-                            child: isValidPhoneNumber
-                                ? CountryFlag.fromCountryCode(
-                                    regionCode,
-                                    shape: const Circle(),
-                                    height: 40,
-                                    width: 40,
-                                  )
-                                : SizedBox(
-                                    height: 40,
-                                    width: 40,
-                                    child: Icon(
-                                      CupertinoIcons.phone,
-                                      color: iconColor,
-                                    ),
-                                  ),
+                            child: SizedBox(
+                              height: 40,
+                              width: 40,
+                              child: Icon(
+                                CupertinoIcons.mail,
+                                color: iconColor,
+                              ),
+                            ),
                           ),
-                          keyboardType: TextInputType.phone,
-                          onChanged: handlePhoneNumberChange,
+                          keyboardType: TextInputType.emailAddress,
+                          onChanged: handleEmailChange,
                         ),
-                      //   Number Input
+                      //   OTP Input
                       if (sessionRequestStatus ==
                               SessionRequestStatus.challenge ||
                           sessionRequestStatus ==
@@ -322,7 +313,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           sessionRequestStatus ==
                               SessionRequestStatus.confirmFailed)
                         CustomTextField(
-                          controller: challengeController,
+                          controller: otpController,
                           placeholder:
                               AppLocalizations.of(context)!.enterLoginCode,
                           focusNode: _challengeFocusNode, // Use the focus node
@@ -336,9 +327,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(30),
                             border: Border.all(
-                              color: !challengeTouched
+                              color: !otpTouched
                                   ? mutedColor
-                                  : challengeTouched && isValidChallenge
+                                  : otpTouched && isValidOTP
                                       ? (sessionRequestStatus ==
                                               SessionRequestStatus.confirming
                                           ? transparentColor
@@ -353,7 +344,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                     SessionRequestStatus.confirming
                                 ? textMutedColor
                                 : textColor,
-                            fontWeight: challengeTouched && isValidChallenge
+                            fontWeight: otpTouched && isValidOTP
                                 ? FontWeight.w700
                                 : FontWeight.w500,
                             letterSpacing: 2,
@@ -365,7 +356,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             letterSpacing: 2,
                           ),
                           keyboardType: TextInputType.number,
-                          onChanged: handleChallengeChange,
+                          onChanged: handleOTPChange,
                         ),
                       const SizedBox(height: 16),
                       if (sessionRequestStatus ==
@@ -388,12 +379,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               SessionRequestStatus.pending ||
                           sessionRequestStatus == SessionRequestStatus.failed)
                         WideButton(
-                          disabled: !isValidPhoneNumber ||
+                          disabled: !isValidEmail ||
                               sessionRequestStatus ==
                                   SessionRequestStatus.pending,
-                          onPressed: isValidPhoneNumber
+                          onPressed: isValidEmail
                               ? () => handleRequest(
-                                  phoneNumberController.value.text)
+                                  emailController.value.text)
                               : null,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -403,7 +394,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 sessionRequestStatus ==
                                         SessionRequestStatus.pending
                                     ? AppLocalizations.of(context)!
-                                        .sendingSmsCode
+                                        .sendingEmailCode
                                     : AppLocalizations.of(context)!.confirm,
                                 style: TextStyle(
                                   fontSize: 16,
@@ -433,12 +424,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           sessionRequestStatus ==
                               SessionRequestStatus.confirmFailed)
                         WideButton(
-                          disabled: !isValidChallenge ||
+                          disabled: !isValidOTP ||
                               sessionRequestStatus ==
                                   SessionRequestStatus.confirming,
-                          onPressed: isValidChallenge
+                          onPressed: isValidOTP
                               ? () =>
-                                  handleConfirm(challengeController.value.text)
+                                  handleConfirm(otpController.value.text)
                               : null,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,

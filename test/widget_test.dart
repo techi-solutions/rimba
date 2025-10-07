@@ -8,8 +8,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:pay_app/main.dart';
-import 'package:pay_app/services/config/service.dart';
+import 'package:rimba/main.dart';
+import 'package:rimba/services/config/service.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {

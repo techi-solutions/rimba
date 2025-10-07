@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/utils/uint8.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/utils/uint8.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:smartcontracts/contracts/apps/Profile.g.dart';
 

@@ -1,6 +1,6 @@
 import 'package:collection/collection.dart';
-import 'package:pay_app/models/interaction.dart';
-import 'package:pay_app/state/interactions/interactions.dart';
+import 'package:rimba/models/interaction.dart';
+import 'package:rimba/state/interactions/interactions.dart';
 
 List<Interaction> sortByUnreadAndDate(InteractionState state) {
   return List<Interaction>.from(state.interactions)

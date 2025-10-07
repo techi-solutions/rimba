@@ -4,23 +4,24 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_libphonenumber/flutter_libphonenumber.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/routes/router.dart';
-import 'package:pay_app/services/audio/audio.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/services/config/service.dart';
-import 'package:pay_app/services/db/app/db.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
-import 'package:pay_app/services/secure/secure.dart';
-import 'package:pay_app/services/localization/localization_service.dart';
-import 'package:pay_app/state/app.dart';
-import 'package:pay_app/state/onboarding.dart';
-import 'package:pay_app/state/state.dart';
-import 'package:pay_app/state/wallet.dart';
-import 'package:pay_app/state/locale_state.dart';
+import 'package:rimba/routes/router.dart';
+import 'package:rimba/services/audio/audio.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/services/config/service.dart';
+import 'package:rimba/services/db/app/db.dart';
+import 'package:rimba/services/otp/otp_service.dart';
+import 'package:rimba/services/preferences/preferences.dart';
+import 'package:rimba/services/secure/secure.dart';
+import 'package:rimba/services/localization/localization_service.dart';
+import 'package:rimba/state/app.dart';
+import 'package:rimba/state/onboarding.dart';
+import 'package:rimba/state/state.dart';
+import 'package:rimba/state/wallet.dart';
+import 'package:rimba/state/locale_state.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
+import 'package:rimba/l10n/app_localizations.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -48,6 +49,10 @@ void main() async {
   await AppDBService().openDB('main');
   await PreferencesService().init(await SharedPreferences.getInstance());
   await SecureService().init(await SharedPreferences.getInstance());
+
+  // Initialize OTP service and clean up expired OTPs
+  final otpService = OTPService();
+  await otpService.cleanupExpiredOTPs();
 
   final audioService = AudioService();
 
@@ -87,7 +92,6 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final _rootNavigatorKey = GlobalKey<NavigatorState>();
   final _appShellNavigatorKey = GlobalKey<NavigatorState>();
-  final _placeShellNavigatorKey = GlobalKey<NavigatorState>();
   final observers = <NavigatorObserver>[];
   late GoRouter router;
 
@@ -104,7 +108,6 @@ class _MyAppState extends State<MyApp> {
     router = createRouter(
       _rootNavigatorKey,
       _appShellNavigatorKey,
-      _placeShellNavigatorKey,
       observers,
       config: widget.config,
       accountAddress: accountAddress,

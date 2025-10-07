@@ -1,15 +1,15 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/state/account.dart';
-import 'package:pay_app/state/onboarding.dart';
-import 'package:pay_app/state/wallet.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/settings_row.dart';
+import 'package:rimba/state/account.dart';
+import 'package:rimba/state/onboarding.dart';
+import 'package:rimba/state/wallet.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/settings_row.dart';
 
-import 'package:pay_app/widgets/wide_button.dart';
+import 'package:rimba/widgets/wide_button.dart';
 import 'package:provider/provider.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
+import 'package:rimba/l10n/app_localizations.dart';
 
 import 'about.dart';
 

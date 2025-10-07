@@ -1,4 +1,4 @@
-import 'package:pay_app/services/wallet/contracts/profile.dart';
+import 'package:rimba/services/wallet/contracts/profile.dart';
 
 class Card {
   final String serial;

@@ -1,14 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
-import 'package:pay_app/models/card.dart';
-import 'package:pay_app/services/config/config.dart';
-import 'package:pay_app/state/app.dart';
-import 'package:pay_app/theme/colors.dart';
-import 'package:pay_app/widgets/button.dart';
-import 'package:pay_app/widgets/modals/dismissible_modal_popup.dart';
-import 'package:pay_app/widgets/cards/card.dart' as cardWidget;
+import 'package:rimba/l10n/app_localizations.dart';
+import 'package:rimba/models/card.dart';
+import 'package:rimba/services/config/config.dart';
+import 'package:rimba/state/app.dart';
+import 'package:rimba/theme/colors.dart';
+import 'package:rimba/widgets/button.dart';
+import 'package:rimba/widgets/modals/dismissible_modal_popup.dart';
+import 'package:rimba/widgets/cards/card.dart' as cardWidget;
 import 'package:provider/provider.dart';
 
 class CardActionsModal extends StatefulWidget {
