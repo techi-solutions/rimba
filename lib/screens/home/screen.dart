@@ -12,9 +12,11 @@ import 'package:pay_app/screens/home/contact_list_item.dart';
 import 'package:pay_app/screens/home/profile_list_item.dart';
 import 'package:pay_app/screens/home/profile_modal.dart';
 import 'package:pay_app/screens/home/group_list_item.dart';
+import 'package:pay_app/screens/home/profile_bar.dart';
 import 'package:pay_app/screens/groups/group_detail_modal.dart';
 import 'package:pay_app/services/contacts/contacts.dart';
 import 'package:pay_app/services/preferences/preferences.dart';
+import 'package:pay_app/services/config/config.dart';
 import 'package:pay_app/state/app.dart';
 import 'package:pay_app/state/contacts/contacts.dart';
 import 'package:pay_app/state/contacts/selectors.dart';
@@ -628,7 +630,7 @@ class _HomeScreenState extends State<HomeScreen>
     final groupsLoading =
         context.select((GroupsState state) => state.isLoading);
 
-    // final config = context.select((WalletState state) => state.config);
+    final config = context.select((WalletState state) => state.config);
     // final currentTokenAddress =
     //     context.select((AppState state) => state.currentTokenAddress);
     // final tokenConfig = config.getToken(currentTokenAddress);
@@ -657,6 +659,19 @@ class _HomeScreenState extends State<HomeScreen>
                       scrollBehavior: const CupertinoScrollBehavior(),
                       physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: ProfileBarDelegate(
+                            small: context
+                                .select<AppState, bool>((state) => state.small),
+                            config: config,
+                            loading: loading,
+                            accountAddress: myAddress ?? '',
+                            backgroundColor:
+                                _backgroundColorAnimation.value ?? whiteColor,
+                            onTopUpTap: handleTopUp,
+                          ),
+                        ),
                         SliverPersistentHeader(
                           floating: true,
                           delegate: SearchBarDelegate(
@@ -927,15 +942,63 @@ class SearchBarDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent =>
-      safeTopPadding + 260 + (isCard ? 0 : 77.0); // Height of your SearchBar
+  double get maxExtent => safeTopPadding + 77.0; // Height of your SearchBar
 
   @override
   double get minExtent =>
-      safeTopPadding +
-      260 +
-      (isCard ? 0 : 77.0); // Same as maxExtent for fixed height
+      safeTopPadding + 77.0; // Same as maxExtent for fixed height
 
   @override
   bool shouldRebuild(covariant SearchBarDelegate oldDelegate) => true;
+}
+
+class ProfileBarDelegate extends SliverPersistentHeaderDelegate {
+  final bool small;
+  final Config config;
+  final bool loading;
+  final String accountAddress;
+  final Color backgroundColor;
+  final Function(String) onTopUpTap;
+
+  ProfileBarDelegate({
+    required this.small,
+    required this.config,
+    required this.loading,
+    required this.accountAddress,
+    required this.backgroundColor,
+    required this.onTopUpTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ProfileBar(
+      selectedAddress: accountAddress,
+      onCardChanged: null,
+      pageController: null,
+      small: small,
+      config: config,
+      loading: loading,
+      accountAddress: accountAddress,
+      backgroundColor: backgroundColor,
+      onTopUpTap: onTopUpTap,
+      onAddCard: null,
+    );
+  }
+
+  @override
+  double get maxExtent => small ? 280 : 320;
+
+  @override
+  double get minExtent => small ? 280 : 320;
+
+  @override
+  bool shouldRebuild(covariant ProfileBarDelegate oldDelegate) =>
+      small != oldDelegate.small ||
+      loading != oldDelegate.loading ||
+      accountAddress != oldDelegate.accountAddress ||
+      backgroundColor != oldDelegate.backgroundColor;
 }
