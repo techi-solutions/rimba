@@ -41,7 +41,7 @@
 
                 <data android:scheme="http" android:host="checkout.pay.brussels" />
                 <data android:scheme="https" />
-                <data android:scheme="brusselspay" />
+                <data android:scheme="zon3" />
             </intent-filter>
 
             <intent-filter android:autoVerify="true">
@@ -52,7 +52,7 @@
 
                 <data android:scheme="http" android:host="wallet.pay.brussels" />
                 <data android:scheme="https" />
-                <data android:scheme="brusselspay" />
+                <data android:scheme="zon3" />
             </intent-filter>
 
             <intent-filter android:autoVerify="true">
@@ -63,7 +63,7 @@
 
                 <data android:scheme="http" android:host="tap.pay.brussels" />
                 <data android:scheme="https" />
-                <data android:scheme="brusselspay" />
+                <data android:scheme="zon3" />
             </intent-filter>
         </activity>
 
