@@ -101,7 +101,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (account != null && !_navigating) {
       _navigating = true;
       _onboardingState.reset();
-      navigator.go('/${account.hexEip55}');
+      navigator.go('/home');
     }
   }
 

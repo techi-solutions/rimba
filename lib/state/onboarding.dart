@@ -166,11 +166,6 @@ class OnboardingState with ChangeNotifier {
       final sessionRequestTxHash = response.$1;
       _sessionRequestHash = response.$2;
 
-      final success = await waitForTxSuccess(_config, sessionRequestTxHash);
-      if (!success) {
-        throw Exception('Failed to wait for session request tx to be mined');
-      }
-
       final salt = generateSessionSalt(parsedSource, 'email');
 
       final provider = EthereumAddress.fromHex(
@@ -224,12 +219,6 @@ class OnboardingState with ChangeNotifier {
       );
       if (sessionConfirmRequestTxHash == null) {
         throw Exception('Failed to confirm session');
-      }
-
-      final success =
-          await waitForTxSuccess(_config, sessionConfirmRequestTxHash);
-      if (!success) {
-        throw Exception('Failed to wait for session request tx to be mined');
       }
 
       sessionRequestStatus = SessionRequestStatus.confirmed;
