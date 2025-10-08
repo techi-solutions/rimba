@@ -57,6 +57,12 @@ class WalletState with ChangeNotifier {
       loading = true;
       safeNotifyListeners();
 
+      if (_address == null) {
+        loading = false;
+        safeNotifyListeners();
+        return;
+      }
+
       tokenBalances = _preferencesService.tokenBalances(_address!.hexEip55);
       updateBalance();
       loadTokenBalances();

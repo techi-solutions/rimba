@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pay_app/state/groups/groups.dart';
 import 'package:pay_app/models/group.dart';
-import 'package:pay_app/screens/groups/group_detail_modal.dart';
 
 class GroupsList extends StatelessWidget {
   const GroupsList({super.key});
@@ -65,12 +65,8 @@ class GroupsList extends StatelessWidget {
   }
 
   void _showGroupDetail(BuildContext context, Group group) {
-    showCupertinoModalPopup(
-      context: context,
-      barrierDismissible: true,
-      useRootNavigator: false,
-      builder: (modalContext) => GroupDetailModal(group: group),
-    );
+    final navigator = GoRouter.of(context);
+    navigator.push('/groups/${group.id}');
   }
 
   void _showDeleteConfirmation(
