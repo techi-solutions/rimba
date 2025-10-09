@@ -15,6 +15,7 @@ import 'package:pay_app/screens/home/screen.dart';
 import 'package:pay_app/screens/onboarding/screen.dart';
 import 'package:pay_app/screens/account/edit/screen.dart';
 import 'package:pay_app/screens/groups/screen.dart';
+import 'package:pay_app/screens/group/detail_screen.dart';
 
 // state
 import 'package:web3dart/web3dart.dart';
@@ -130,6 +131,15 @@ GoRouter createRouter(
               },
             ),
           ],
+        ),
+        GoRoute(
+          name: 'GroupDetail',
+          path: '/groups/:groupId',
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) {
+            final groupId = state.pathParameters['groupId']!;
+            return GroupDetailScreen(groupId: groupId);
+          },
         ),
       ],
     );

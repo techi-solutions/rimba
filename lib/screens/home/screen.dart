@@ -549,20 +549,17 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void handleGroupTap(String? myAddress, Group group) {
-    if (myAddress == null) return;
-
+    
     _stopInitRetries = true;
     _backgroundColorController.forward();
 
     HapticFeedback.heavyImpact();
 
-    showCupertinoModalPopup(
-      context: context,
-      barrierDismissible: true,
-      useRootNavigator: false,
-      barrierColor: blackColor.withAlpha(160),
-      builder: (modalContext) => GroupDetailModal(group: group),
-    ).then((_) {
+    final navigator = GoRouter.of(context);
+    navigator.push('/groups/${group.id}').then((_) {
+      _backgroundColorController.reverse();
+      _stopInitRetries = false;
+    }).catchError((error) {
       _backgroundColorController.reverse();
       _stopInitRetries = false;
     });
@@ -586,10 +583,6 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  void _navigateToGroupsScreen() {
-    final navigator = GoRouter.of(context);
-    navigator.push('/groups');
-  }
 
   void _dismissKeyboard() {
     FocusScope.of(context).unfocus();
@@ -717,43 +710,8 @@ class _HomeScreenState extends State<HomeScreen>
                         if (groups.isNotEmpty && !isSearching)
                           SliverList(
                             delegate: SliverChildBuilderDelegate(
-                              childCount:
-                                  groups.length + 1, // +1 for "View All" button
+                              childCount: groups.length,
                               (context, index) {
-                                if (index == groups.length) {
-                                  // "View All Groups" button
-                                  return Container(
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    child: CupertinoButton(
-                                      onPressed: _navigateToGroupsScreen,
-                                      child: Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                            color: CupertinoColors.systemBlue,
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: const Text(
-                                          'View All Groups',
-                                          style: TextStyle(
-                                            color: CupertinoColors.systemBlue,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }
-
                                 return GroupListItem(
                                   group: groups[index],
                                   onTap: (group) =>

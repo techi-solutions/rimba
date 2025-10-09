@@ -123,7 +123,6 @@ class APIService {
       mergedHeaders.addAll(headers);
     }
 
-    print('$baseURL${url ?? ''}');
 
     final response = await http
         .patch(

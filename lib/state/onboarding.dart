@@ -3,8 +3,6 @@ import 'dart:typed_data';
 
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_libphonenumber/flutter_libphonenumber.dart';
 import 'package:pay_app/services/config/config.dart';
 import 'package:pay_app/services/preferences/preferences.dart';
 import 'package:pay_app/services/secure/secure.dart';
@@ -30,12 +28,10 @@ class OnboardingState with ChangeNotifier {
   final Config _config;
 
   // private variables here
-  final TextEditingController _phoneNumberController = TextEditingController(
-    text: dotenv.get('DEFAULT_PHONE_COUNTRY_CODE'),
-  );
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _challengeController = TextEditingController();
 
-  TextEditingController get phoneNumberController => _phoneNumberController;
+  TextEditingController get emailController => _emailController;
   TextEditingController get challengeController => _challengeController;
 
   EthPrivateKey? _sessionRequestPrivateKey;
@@ -68,7 +64,7 @@ class OnboardingState with ChangeNotifier {
   EthereumAddress? connectedAccountAddress;
 
   bool touched = false;
-  String? regionCode;
+  bool isValidEmail = false;
   bool challengeTouched = false;
   String? challenge;
 
@@ -80,11 +76,11 @@ class OnboardingState with ChangeNotifier {
     _sessionRequestPrivateKey = null;
 
     touched = false;
-    regionCode = null;
+    isValidEmail = false;
     challengeTouched = false;
     challenge = null;
 
-    phoneNumberController.clear();
+    emailController.clear();
     challengeController.clear();
   }
 
@@ -151,16 +147,11 @@ class OnboardingState with ChangeNotifier {
       safeNotifyListeners();
 
       String? parsedSource;
-      try {
-        final result = await parse(source);
-
-        parsedSource = result['e164'];
-      } catch (e) {
-        throw Exception('Invalid phone number');
+      // Validate email format
+      if (!_isValidEmail(source)) {
+        throw Exception('Invalid email address');
       }
-      if (parsedSource == null) {
-        throw Exception('Invalid phone number');
-      }
+      parsedSource = source;
 
       final random = Random.secure();
       _sessionRequestPrivateKey = EthPrivateKey.createRandom(random);
@@ -175,12 +166,7 @@ class OnboardingState with ChangeNotifier {
       final sessionRequestTxHash = response.$1;
       _sessionRequestHash = response.$2;
 
-      final success = await waitForTxSuccess(_config, sessionRequestTxHash);
-      if (!success) {
-        throw Exception('Failed to wait for session request tx to be mined');
-      }
-
-      final salt = generateSessionSalt(parsedSource, 'sms');
+      final salt = generateSessionSalt(parsedSource, 'email');
 
       final provider = EthereumAddress.fromHex(
         _config.getPrimarySessionManager().providerAddress,
@@ -235,12 +221,6 @@ class OnboardingState with ChangeNotifier {
         throw Exception('Failed to confirm session');
       }
 
-      final success =
-          await waitForTxSuccess(_config, sessionConfirmRequestTxHash);
-      if (!success) {
-        throw Exception('Failed to wait for session request tx to be mined');
-      }
-
       sessionRequestStatus = SessionRequestStatus.confirmed;
       safeNotifyListeners();
 
@@ -271,18 +251,37 @@ class OnboardingState with ChangeNotifier {
     }
   }
 
-  Future<void> formatPhoneNumber(String phoneNumber) async {
-    try {
-      final result = await parse(phoneNumber);
-
-      regionCode = result['region_code'];
-    } catch (e) {
-      regionCode = null;
-    }
-
+  void formatEmail(String email) {
+    isValidEmail = _isValidEmail(email);
     touched = true;
-
     safeNotifyListeners();
+  }
+
+  bool _isValidEmail(String email) {
+    // Email validation regex
+    final emailRegex = RegExp(
+        r'^[a-zA-Z0-9]([a-zA-Z0-9._+-]*[a-zA-Z0-9])?@[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}$');
+
+    if (email.isEmpty || email.length > 254) return false;
+    if (email.startsWith('.') || email.endsWith('.')) return false;
+    if (email.contains('..')) return false;
+    if (email.split('@').length != 2) return false;
+
+    final parts = email.split('@');
+    if (parts.length != 2) return false;
+
+    final localPart = parts[0];
+    final domainPart = parts[1];
+
+    if (localPart.isEmpty) return false;
+    if (localPart.startsWith('.') || localPart.endsWith('.')) return false;
+    if (localPart.startsWith('-') || localPart.endsWith('-')) return false;
+    if (localPart.startsWith('_') || localPart.endsWith('_')) return false;
+    if (localPart.startsWith('+') || localPart.endsWith('+')) return false;
+
+    if (domainPart.isEmpty) return false;
+
+    return emailRegex.hasMatch(email);
   }
 
   void updateChallenge(String? challenge) {
