@@ -183,8 +183,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
                       // Title
                       Text(
-                        community?.community.name ??
-                            AppLocalizations.of(context)!.loading,
+                        'ZON3',
                         style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
