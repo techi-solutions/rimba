@@ -10,6 +10,7 @@ import 'package:pay_app/theme/colors.dart';
 import 'package:pay_app/utils/delay.dart';
 import 'package:pay_app/widgets/toast/toast.dart';
 import 'package:pay_app/widgets/webview/connected_webview_modal.dart';
+import 'package:pay_app/widgets/modals/topup_coming_soon_modal.dart';
 import 'package:provider/provider.dart';
 import 'package:toastification/toastification.dart';
 
@@ -74,7 +75,7 @@ class _HomeShellState extends State<HomeShell> {
             modalContext.select((TopupState state) => state.topupUrl);
 
         if (topupUrl.isEmpty) {
-          return const SizedBox.shrink();
+          return const TopupComingSoonModal();
         }
 
         return ConnectedWebViewModal(

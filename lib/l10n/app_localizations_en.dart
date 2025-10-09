@@ -325,4 +325,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addFunds => 'top up';
+
+  @override
+  String get topupComingSoon => 'Top ups are coming soon!';
+
+  @override
+  String get topupComingSoonDescription =>
+      'We\'re working hard to bring you the ability to add funds to your wallet. Stay tuned for updates!';
 }
