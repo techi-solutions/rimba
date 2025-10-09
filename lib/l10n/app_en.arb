@@ -105,6 +105,8 @@
     "privacyPolicy": "Privacy policy",
     "brusselsPay": "Brussels Pay",
     "addFunds": "top up",
+    "topupComingSoon": "Top ups are coming soon!",
+    "topupComingSoonDescription": "We're working hard to bring you the ability to add funds to your wallet. Stay tuned for updates!",
     "@appTitle": {
         "description": "The title of the application"
     },
@@ -367,6 +369,12 @@
     },
     "@topUp": {
         "description": "Top up button text"
+    },
+    "@topupComingSoon": {
+        "description": "Top ups coming soon title"
+    },
+    "@topupComingSoonDescription": {
+        "description": "Top ups coming soon description"
     },
     "@shareInviteLink": {
         "description": "Share invite link button text"

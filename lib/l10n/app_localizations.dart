@@ -731,6 +731,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'top up'**
   String get addFunds;
+
+  /// Top ups coming soon title
+  ///
+  /// In en, this message translates to:
+  /// **'Top ups are coming soon!'**
+  String get topupComingSoon;
+
+  /// Top ups coming soon description
+  ///
+  /// In en, this message translates to:
+  /// **'We\'re working hard to bring you the ability to add funds to your wallet. Stay tuned for updates!'**
+  String get topupComingSoonDescription;
 }
 
 class _AppLocalizationsDelegate

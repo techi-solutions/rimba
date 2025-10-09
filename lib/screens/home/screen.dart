@@ -21,6 +21,7 @@ import 'package:pay_app/state/app.dart';
 import 'package:pay_app/state/contacts/contacts.dart';
 import 'package:pay_app/state/contacts/selectors.dart';
 import 'package:pay_app/state/onboarding.dart';
+import 'package:pay_app/state/profile.dart';
 import 'package:pay_app/state/topup.dart';
 import 'package:pay_app/state/transactions/transactions.dart';
 import 'package:pay_app/state/wallet.dart';
@@ -30,6 +31,7 @@ import 'package:pay_app/utils/delay.dart';
 import 'package:pay_app/widgets/modals/confirm_modal.dart';
 import 'package:pay_app/widgets/toast/toast.dart';
 import 'package:pay_app/widgets/webview/connected_webview_modal.dart';
+import 'package:pay_app/widgets/modals/topup_coming_soon_modal.dart';
 import 'package:pay_app/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:toastification/toastification.dart';
@@ -68,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen>
       Debouncer(timerDuration: const Duration(milliseconds: 300));
 
   late AppState _appState;
+  late ProfileState _profileState;
   late OnboardingState _onboardingState;
   late WalletState _walletState;
   late ContactsState _contactsState;
@@ -113,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _initState() {
     _appState = context.read<AppState>();
+    _profileState = context.read<ProfileState>();
     _onboardingState = context.read<OnboardingState>();
     _walletState = context.read<WalletState>();
     _contactsState = context.read<ContactsState>();
@@ -460,14 +464,16 @@ class _HomeScreenState extends State<HomeScreen>
             modalContext.select((TopupState state) => state.topupUrl);
 
         if (topupUrl.isEmpty) {
-          return const SizedBox.shrink();
+          return const TopupComingSoonModal();
         }
 
-        return ConnectedWebViewModal(
-          modalKey: 'connected-webview',
-          url: topupUrl,
-          redirectUrl: redirectUrl,
-        );
+        return const TopupComingSoonModal();
+
+        // return ConnectedWebViewModal(
+        //   modalKey: 'connected-webview',
+        //   url: topupUrl,
+        //   redirectUrl: redirectUrl,
+        // );
       },
     );
 
@@ -549,7 +555,6 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void handleGroupTap(String? myAddress, Group group) {
-    
     _stopInitRetries = true;
     _backgroundColorController.forward();
 
@@ -582,7 +587,6 @@ class _HomeScreenState extends State<HomeScreen>
       _stopInitRetries = false;
     });
   }
-
 
   void _dismissKeyboard() {
     FocusScope.of(context).unfocus();

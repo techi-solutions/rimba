@@ -325,6 +325,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get addFunds => 'top up';
+
+  @override
+  String get topupComingSoon => 'Top ups are coming soon!';
+
+  @override
+  String get topupComingSoonDescription =>
+      'We\'re working hard to bring you the ability to add funds to your wallet. Stay tuned for updates!';
 }
 
 /// The translations for French, as used in Belgium (`fr_BE`).
