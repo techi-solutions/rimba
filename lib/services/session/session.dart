@@ -80,7 +80,7 @@ class SessionService {
         );
 
   final APIService _apiService = APIService(
-    baseURL: dotenv.env['DASHBOARD_API_BASE_URL'] ?? '',
+    baseURL: '${dotenv.env['SESSION_API_BASE_URL']}/app/${dotenv.env['APP_ALIAS']}',
   );
 
   /// Creates a session request
@@ -90,7 +90,7 @@ class SessionService {
   ) async {
     try {
       final sessionOwner = privateKey.address.hexEip55;
-      final sessionType = 'sms';
+      final sessionType = 'email';
 
       // Generate expiry timestamp (current time + 365 days in seconds)
       final expiry = (DateTime.now().millisecondsSinceEpoch ~/ 1000) +
@@ -123,7 +123,7 @@ class SessionService {
 
       // Send POST request
       final response = await _apiService.post(
-        url: '/app/session',
+        url: '/session',
         body: requestBody,
       );
 
@@ -133,6 +133,12 @@ class SessionService {
     } catch (e, s) {
       debugPrint('Failed to create session request: $e');
       debugPrint('Stack trace: $s');
+
+      if (e.toString().contains('500') || e.toString().contains('Internal Server Error')) {
+        debugPrint('Server error detected - email authentication may not be supported yet');
+        throw Exception('Email authentication is currently unavailable. The server is experiencing issues with email authentication. Please try again later or contact support.');
+      }
+      
       return null;
     }
   }
@@ -176,7 +182,7 @@ class SessionService {
 
       // Send PATCH request
       final response = await _apiService.patch(
-        url: '/app/session',
+        url: '/session',
         body: requestBody,
       );
 
