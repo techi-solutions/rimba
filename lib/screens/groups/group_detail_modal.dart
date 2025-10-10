@@ -173,43 +173,45 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
           ],
         ),
         const SizedBox(height: 16),
-        Consumer<GroupsState>(
-          builder: (context, groupsState, child) {
-            if (widget.group != null && !_isEditing) {
-              // Show members from state
-              final members = groupsState.currentGroupMembers;
-              if (members.isEmpty) {
-                return const Text('No members found');
-              }
-
-              return Column(
-                children: members
-                    .map((member) => _buildMemberItem(
-                          member.contactAccount,
-                          onRemove: null, // Can't remove in view mode
-                        ))
-                    .toList(),
-              );
-            } else {
-              // Show members from local list (create/edit mode)
-              if (_memberAccounts.isEmpty) {
-                return const Text('No members added yet');
-              }
-
-              return Column(
-                children: _memberAccounts.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final account = entry.value;
-                  return _buildMemberItem(
-                    account,
-                    onRemove: () => _removeMember(index),
-                  );
-                }).toList(),
-              );
-            }
-          },
-        ),
+        _buildMembersContent(),
       ],
+    );
+  }
+
+  Widget _buildMembersContent() {
+    try {
+      final groupsState = Provider.of<GroupsState>(context, listen: false);
+
+      if (widget.group != null && !_isEditing) {
+        final members = groupsState.currentGroupMembers;
+        if (members.isEmpty) {
+          return const Text('No members found');
+        }
+
+        return Column(
+          children: members
+              .map((member) => _buildMemberItem(
+                    member.contactAccount,
+                    onRemove: null,
+                  ))
+              .toList(),
+        );
+      }
+    } catch (e) {}
+
+    if (_memberAccounts.isEmpty) {
+      return const Text('No members added yet');
+    }
+
+    return Column(
+      children: _memberAccounts.asMap().entries.map((entry) {
+        final index = entry.key;
+        final account = entry.value;
+        return _buildMemberItem(
+          account,
+          onRemove: () => _removeMember(index),
+        );
+      }).toList(),
     );
   }
 
@@ -270,17 +272,23 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
 
   void _loadMembersForEditing() {
     if (widget.group != null) {
-      final groupsState = context.read<GroupsState>();
-      groupsState.selectGroup(widget.group!.id).then((_) {
+      try {
+        final groupsState = context.read<GroupsState>();
+        groupsState.selectGroup(widget.group!.id).then((_) {
+          setState(() {
+            _memberAccounts.clear();
+            _memberAccounts.addAll(
+              groupsState.currentGroupMembers
+                  .map((member) => member.contactAccount)
+                  .toList(),
+            );
+          });
+        });
+      } catch (e) {
         setState(() {
           _memberAccounts.clear();
-          _memberAccounts.addAll(
-            groupsState.currentGroupMembers
-                .map((member) => member.contactAccount)
-                .toList(),
-          );
         });
-      });
+      }
     }
   }
 
@@ -340,7 +348,7 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
     }
   }
 
-  void _updateGroup() async {
+  Future<void> _updateGroup() async {
     if (_nameController.text.isEmpty || _amountController.text.isEmpty) {
       _showError('Please fill in all required fields');
       return;
@@ -350,49 +358,62 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
       _isLoading = true;
     });
 
-    final groupsState = context.read<GroupsState>();
-    final success = await groupsState.updateGroup(
-      id: widget.group!.id,
-      name: _nameController.text,
-      description: _descriptionController.text.isEmpty
-          ? null
-          : _descriptionController.text,
-      amount: _amountController.text,
-    );
+    try {
+      final groupsState = context.read<GroupsState>();
+      final success = await groupsState.updateGroup(
+        id: widget.group!.id,
+        name: _nameController.text,
+        description: _descriptionController.text.isEmpty
+            ? null
+            : _descriptionController.text,
+        amount: _amountController.text,
+      );
 
-    setState(() {
-      _isLoading = false;
-    });
+      setState(() {
+        _isLoading = false;
+      });
 
-    if (success != null && mounted) {
-      HapticFeedback.lightImpact();
-      // Update members if they changed
-      await _updateMembers();
-    } else if (mounted) {
-      _showError('Failed to update group');
+      if (success != null && mounted) {
+        HapticFeedback.lightImpact();
+        // Update members if they changed
+        await _updateMembers();
+      } else if (mounted) {
+        _showError('Failed to update group');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        _showError('GroupsState not available. Please restart the app.');
+      }
     }
   }
 
   Future<void> _updateMembers() async {
     if (widget.group == null) return;
 
-    final groupsState = context.read<GroupsState>();
-    final currentMembers = groupsState.currentGroupMembers
-        .map((member) => member.contactAccount)
-        .toList();
+    try {
+      final groupsState = context.read<GroupsState>();
+      final currentMembers = groupsState.currentGroupMembers
+          .map((member) => member.contactAccount)
+          .toList();
 
-    // Remove members that are no longer in the list
-    for (final member in currentMembers) {
-      if (!_memberAccounts.contains(member)) {
-        await groupsState.removeGroupMember(member);
+      // Remove members that are no longer in the list
+      for (final member in currentMembers) {
+        if (!_memberAccounts.contains(member)) {
+          await groupsState.removeGroupMember(member);
+        }
       }
-    }
 
-    // Add new members
-    for (final account in _memberAccounts) {
-      if (!currentMembers.contains(account)) {
-        await groupsState.addGroupMember(account);
+      // Add new members
+      for (final account in _memberAccounts) {
+        if (!currentMembers.contains(account)) {
+          await groupsState.addGroupMember(account);
+        }
       }
+    } catch (e) {
+      debugPrint('GroupsState not available for member updates: $e');
     }
   }
 

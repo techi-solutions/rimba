@@ -29,12 +29,14 @@ class GroupMember {
   }
 
   factory GroupMember.fromMap(Map<String, dynamic> map) {
+    final user = map['user'] as Map<String, dynamic>?;
+    
     return GroupMember(
-      groupId: map['group_id'],
-      contactAccount: map['contact_account'],
-      memberName: map['member_name'],
-      contributionAmount: map['contribution_amount'] ?? '0.00',
-      createdAt: DateTime.parse(map['created_at']),
+      groupId: map['group_id'] as String,
+      contactAccount: map['contact_account'] as String,
+      memberName: user?['name'] as String?,
+      contributionAmount: map['contribution_amount'] as String? ?? '0.00',
+      createdAt: DateTime.parse(map['created_at'] as String),
     );
   }
 

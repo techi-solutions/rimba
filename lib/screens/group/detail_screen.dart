@@ -159,6 +159,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   void _editGroup(Group group) {
     showCupertinoModalPopup(
       context: context,
+      useRootNavigator: true,
       builder: (context) => GroupDetailModal(group: group),
     );
   }

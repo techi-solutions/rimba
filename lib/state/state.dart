@@ -14,6 +14,8 @@ import 'package:pay_app/state/transactions/transactions.dart';
 import 'package:pay_app/state/wallet.dart';
 import 'package:pay_app/state/locale_state.dart';
 import 'package:pay_app/state/groups/groups.dart';
+import 'package:pay_app/state/groups/group_members.dart';
+import 'package:pay_app/state/requests/requests.dart';
 import 'package:provider/provider.dart';
 
 Widget provideAppState(
@@ -50,10 +52,7 @@ Widget provideAppState(
           key: Key('wallet'),
           create: (_) => WalletState(config),
         ),
-        ChangeNotifierProvider(
-          key: Key('groups'),
-          create: (_) => GroupsState(),
-        ),
+        // GroupsState will be provided in provideAccountState
       ],
       builder: builder,
       child: child,
@@ -85,6 +84,18 @@ Widget provideAccountState(
           ChangeNotifierProvider(
             key: Key('transactions-$account-$token'),
             create: (_) => TransactionsState(accountAddress: account),
+          ),
+          ChangeNotifierProvider(
+            key: Key('groups-$account'),
+            create: (_) => GroupsState(account: account),
+          ),
+          ChangeNotifierProvider(
+            key: Key('group-members'),
+            create: (_) => GroupMembersState(),
+          ),
+          ChangeNotifierProvider(
+            key: Key('requests'),
+            create: (_) => RequestsState(),
           ),
         ],
         child: child,

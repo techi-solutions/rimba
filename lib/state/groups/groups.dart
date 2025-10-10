@@ -1,15 +1,21 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:pay_app/models/group.dart';
 import 'package:pay_app/models/group_member.dart';
+import 'package:pay_app/models/group_request.dart';
 import 'package:pay_app/services/groups/groups.dart';
+import 'package:pay_app/services/db/app/db.dart';
+import 'package:pay_app/services/db/app/groups.dart';
 
 class GroupsState extends ChangeNotifier {
   // Services
-  final GroupsService _groupsService = GroupsService();
+  late GroupsService _groupsService;
+  late GroupsTable _groupsTable;
 
   // State variables
   List<Group> groups = [];
   List<GroupMember> currentGroupMembers = [];
+  List<GroupRequest> groupRequests = [];
   Group? selectedGroup;
   String searchQuery = '';
   bool isLoading = false;
@@ -17,9 +23,17 @@ class GroupsState extends ChangeNotifier {
 
   // Private variables
   bool _mounted = true;
+  Timer? _pollingTimer;
+  static const pollingInterval = 10000;
 
   // Constructor
-  GroupsState();
+  GroupsState({required String account}) {
+    _groupsService = GroupsService();
+    _groupsTable = AppDBService().groups;
+  }
+
+  // Hardcoded test user ID for testing
+  static const String _testUserId = 'cmgkykqro0007i2s5ud0tmpqx';
 
   // Safe notify listeners
   void safeNotifyListeners() {
@@ -31,6 +45,7 @@ class GroupsState extends ChangeNotifier {
   @override
   void dispose() {
     _mounted = false;
+    stopPolling();
     super.dispose();
   }
 
@@ -43,10 +58,18 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
-      groups = await _groupsService.getGroups();
+      final dbGroups = await _groupsTable.getAll();
+      if (dbGroups.isNotEmpty) {
+        groups = dbGroups;
+        safeNotifyListeners();
+      }
+
+      await _syncGroupsFromAPI();
+
+      startPolling();
     } catch (e) {
       error = 'Failed to fetch groups: $e';
-      print('Error fetching groups: $e');
+      debugPrint('Error fetching groups: $e');
     } finally {
       isLoading = false;
       safeNotifyListeners();
@@ -65,18 +88,18 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
-      final newGroup = await _groupsService.createGroup(
+      final newGroup = await _groupsService.createNewGroup(
         name: name,
         description: description,
         amount: amount,
-        memberAccounts: memberAccounts,
+        memberCount: memberAccounts.length,
       );
 
       groups.add(newGroup);
       return newGroup;
     } catch (e) {
       error = 'Failed to create group: $e';
-      print('Error creating group: $e');
+      debugPrint('Error creating group: $e');
       return null;
     } finally {
       isLoading = false;
@@ -97,10 +120,10 @@ class GroupsState extends ChangeNotifier {
       safeNotifyListeners();
 
       final updatedGroup = await _groupsService.updateGroup(
-        id: id,
-        name: name,
+        groupId: id,
+        name: name ?? '',
         description: description,
-        amount: amount,
+        amount: amount ?? '',
       );
 
       if (updatedGroup != null) {
@@ -113,12 +136,13 @@ class GroupsState extends ChangeNotifier {
         if (selectedGroup?.id == id) {
           selectedGroup = updatedGroup;
         }
+        await _groupsTable.upsert(updatedGroup);
       }
 
       return updatedGroup;
     } catch (e) {
       error = 'Failed to update group: $e';
-      print('Error updating group: $e');
+      debugPrint('Error updating group: $e');
       return null;
     } finally {
       isLoading = false;
@@ -133,7 +157,7 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
-      final success = await _groupsService.deleteGroup(id);
+      final success = await _groupsService.deleteGroupById(id);
 
       if (success) {
         groups.removeWhere((group) => group.id == id);
@@ -148,7 +172,7 @@ class GroupsState extends ChangeNotifier {
       return success;
     } catch (e) {
       error = 'Failed to delete group: $e';
-      print('Error deleting group: $e');
+      debugPrint('Error deleting group: $e');
       return false;
     } finally {
       isLoading = false;
@@ -167,7 +191,7 @@ class GroupsState extends ChangeNotifier {
       return group;
     } catch (e) {
       error = 'Failed to fetch group: $e';
-      print('Error fetching group: $e');
+      debugPrint('Error fetching group: $e');
       return null;
     } finally {
       isLoading = false;
@@ -189,7 +213,7 @@ class GroupsState extends ChangeNotifier {
       }
     } catch (e) {
       error = 'Failed to select group: $e';
-      print('Error selecting group: $e');
+      debugPrint('Error selecting group: $e');
     } finally {
       isLoading = false;
       safeNotifyListeners();
@@ -236,7 +260,7 @@ class GroupsState extends ChangeNotifier {
       return newMember;
     } catch (e) {
       error = 'Failed to add group member: $e';
-      print('Error adding group member: $e');
+      debugPrint('Error adding group member: $e');
       return null;
     } finally {
       isLoading = false;
@@ -279,7 +303,7 @@ class GroupsState extends ChangeNotifier {
       return success;
     } catch (e) {
       error = 'Failed to remove group member: $e';
-      print('Error removing group member: $e');
+      debugPrint('Error removing group member: $e');
       return false;
     } finally {
       isLoading = false;
@@ -302,7 +326,7 @@ class GroupsState extends ChangeNotifier {
       }
     } catch (e) {
       error = 'Failed to search groups: $e';
-      print('Error searching groups: $e');
+      debugPrint('Error searching groups: $e');
     } finally {
       isLoading = false;
       safeNotifyListeners();
@@ -345,5 +369,258 @@ class GroupsState extends ChangeNotifier {
     return currentGroupMembers
         .where((member) => member.groupId == groupId)
         .length;
+  }
+
+  Future<void> fetchUserGroups([String? userId]) async {
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      final actualUserId = userId ?? _testUserId;
+
+      final dbGroups = await _groupsTable.getAll();
+      if (dbGroups.isNotEmpty) {
+        groups = dbGroups;
+        safeNotifyListeners();
+      }
+
+      await _syncUserGroupsFromAPI(actualUserId);
+    } catch (e) {
+      error = 'Failed to fetch user groups: $e';
+      debugPrint('Error fetching user groups: $e');
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Create a new group using the new API
+  Future<Group?> createNewGroup({
+    required String name,
+    required String description,
+    required String amount,
+    int memberCount = 0,
+  }) async {
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      final newGroup = await _groupsService.createNewGroup(
+        name: name,
+        description: description,
+        amount: amount,
+        memberCount: memberCount,
+      );
+
+      // Store in database
+      await _groupsTable.upsert(newGroup);
+
+      // Update UI
+      groups = await _groupsTable.getAll();
+      safeNotifyListeners();
+
+      return newGroup;
+    } catch (e) {
+      error = 'Failed to create group: $e';
+      debugPrint('Error creating group: $e');
+      return null;
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Get group details using the new API
+  Future<Group?> fetchGroupDetails(String groupId) async {
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      final group = await _groupsService.getGroupDetails(groupId);
+      return group;
+    } catch (e) {
+      error = 'Failed to fetch group details: $e';
+      debugPrint('Error fetching group details: $e');
+      return null;
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Delete group using the new API
+  Future<bool> deleteGroupById(String groupId) async {
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      final success = await _groupsService.deleteGroupById(groupId);
+
+      if (success) {
+        groups.removeWhere((group) => group.id == groupId);
+
+        // Clear selected group if it's the one being deleted
+        if (selectedGroup?.id == groupId) {
+          selectedGroup = null;
+          currentGroupMembers = [];
+        }
+      }
+
+      return success;
+    } catch (e) {
+      error = 'Failed to delete group: $e';
+      debugPrint('Error deleting group: $e');
+      return false;
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
+  // Group Requests methods
+
+  /// Fetch group requests
+  Future<void> fetchGroupRequests() async {
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      groupRequests = await _groupsService.getGroupRequests();
+    } catch (e) {
+      error = 'Failed to fetch group requests: $e';
+      debugPrint('Error fetching group requests: $e');
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Accept a group request
+  Future<bool> acceptGroupRequest(String requestId) async {
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      final success = await _groupsService.acceptGroupRequest(requestId);
+
+      if (success) {
+        // Remove from local list
+        groupRequests.removeWhere((req) => req.id == requestId);
+      }
+
+      return success;
+    } catch (e) {
+      error = 'Failed to accept group request: $e';
+      debugPrint('Error accepting group request: $e');
+      return false;
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Decline a group request
+  Future<bool> declineGroupRequest(String requestId) async {
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      final success = await _groupsService.declineGroupRequest(requestId);
+
+      if (success) {
+        // Remove from local list
+        groupRequests.removeWhere((req) => req.id == requestId);
+      }
+
+      return success;
+    } catch (e) {
+      error = 'Failed to decline group request: $e';
+      debugPrint('Error declining group request: $e');
+      return false;
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
+  void startPolling() {
+    stopPolling();
+    _pollingTimer = Timer.periodic(
+      const Duration(milliseconds: pollingInterval),
+      (_) => _pollGroups(),
+    );
+  }
+
+  /// Stop polling
+  void stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+  }
+
+  /// Poll for group updates
+  Future<void> _pollGroups() async {
+    try {
+      debugPrint('Polling groups for updates');
+      await _syncGroupsFromAPI();
+    } catch (e) {
+      debugPrint('Error polling groups: $e');
+    }
+  }
+
+  /// Sync groups from API and update database
+  Future<void> _syncGroupsFromAPI() async {
+    try {
+      // Get groups from API
+      final apiGroups = await _groupsService.getGroups();
+
+      if (apiGroups.isNotEmpty) {
+        // Store in database
+        for (final group in apiGroups) {
+          await _groupsTable.upsert(group);
+        }
+
+        // Update UI
+        groups = await _groupsTable.getAll();
+        safeNotifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error syncing groups from API: $e');
+      // Don't throw - show cached data even if sync fails
+    }
+  }
+
+  /// Sync user groups from API
+  Future<void> _syncUserGroupsFromAPI(String userId) async {
+    try {
+      final apiGroups = await _groupsService.getUserGroups(userId);
+
+      if (apiGroups.isNotEmpty) {
+        // Store in database
+        for (final group in apiGroups) {
+          await _groupsTable.upsert(group);
+        }
+
+        // Update UI
+        groups = await _groupsTable.getAll();
+        safeNotifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error syncing user groups from API: $e');
+    }
+  }
+
+  /// Refresh groups (force API sync)
+  Future<void> refreshGroups() async {
+    stopPolling();
+    groups = [];
+    safeNotifyListeners();
+    await fetchGroups();
   }
 }

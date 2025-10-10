@@ -12,6 +12,7 @@ import 'package:pay_app/screens/home/contact_list_item.dart';
 import 'package:pay_app/screens/home/profile_list_item.dart';
 import 'package:pay_app/screens/home/profile_modal.dart';
 import 'package:pay_app/screens/home/group_list_item.dart';
+import 'package:pay_app/widgets/groups/group_request_list_item.dart';
 import 'package:pay_app/screens/home/profile_bar.dart';
 import 'package:pay_app/screens/groups/group_detail_modal.dart';
 import 'package:pay_app/services/contacts/contacts.dart';
@@ -30,7 +31,6 @@ import 'package:pay_app/theme/colors.dart';
 import 'package:pay_app/utils/delay.dart';
 import 'package:pay_app/widgets/modals/confirm_modal.dart';
 import 'package:pay_app/widgets/toast/toast.dart';
-import 'package:pay_app/widgets/webview/connected_webview_modal.dart';
 import 'package:pay_app/widgets/modals/topup_coming_soon_modal.dart';
 import 'package:pay_app/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -146,6 +146,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Initialize groups
     _groupsState.fetchGroups();
+    _groupsState.fetchGroupRequests();
   }
 
   Future<void> handleRefresh() async {
@@ -154,6 +155,7 @@ class _HomeScreenState extends State<HomeScreen>
     // Refresh transactions and groups
     await _transactionsState.refreshTransactions();
     await _groupsState.fetchGroups();
+    await _groupsState.fetchGroupRequests();
 
     HapticFeedback.heavyImpact();
   }
@@ -592,6 +594,14 @@ class _HomeScreenState extends State<HomeScreen>
     FocusScope.of(context).unfocus();
   }
 
+  void _handleAcceptRequest(String requestId) {
+    _groupsState.acceptGroupRequest(requestId);
+  }
+
+  void _handleDeclineRequest(String requestId) {
+    _groupsState.declineGroupRequest(requestId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final expiredCredentials =
@@ -624,6 +634,8 @@ class _HomeScreenState extends State<HomeScreen>
     //     context.select((TransactionsState state) => state.loadingMore);
 
     final groups = context.select((GroupsState state) => state.filteredGroups);
+    final groupRequests =
+        context.select((GroupsState state) => state.groupRequests);
     final groupsLoading =
         context.select((GroupsState state) => state.isLoading);
 
@@ -709,6 +721,52 @@ class _HomeScreenState extends State<HomeScreen>
                                   profile.account,
                                 ),
                               ),
+                            ),
+                          ),
+                        // Group Requests Section
+                        if (groupRequests.isNotEmpty && !isSearching)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: Text(
+                                'Group Requests',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF14023F),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (groupRequests.isNotEmpty && !isSearching)
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              childCount: groupRequests.length,
+                              (context, index) {
+                                final request = groupRequests[index];
+                                return GroupRequestListItem(
+                                  request: request,
+                                  onAccept: (requestId) =>
+                                      _handleAcceptRequest(requestId),
+                                  onDecline: (requestId) =>
+                                      _handleDeclineRequest(requestId),
+                                );
+                              },
+                            ),
+                          ),
+                        // Divider between requests and groups
+                        if (groupRequests.isNotEmpty &&
+                            groups.isNotEmpty &&
+                            !isSearching)
+                          SliverToBoxAdapter(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              height: 1,
+                              color: CupertinoColors.separator,
                             ),
                           ),
                         if (groups.isNotEmpty && !isSearching)

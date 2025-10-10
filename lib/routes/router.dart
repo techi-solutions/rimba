@@ -130,16 +130,15 @@ GoRouter createRouter(
                 return const GroupsScreen();
               },
             ),
+            GoRoute(
+              name: 'GroupDetail',
+              path: '/groups/:groupId',
+              builder: (context, state) {
+                final groupId = state.pathParameters['groupId']!;
+                return GroupDetailScreen(groupId: groupId);
+              },
+            ),
           ],
-        ),
-        GoRoute(
-          name: 'GroupDetail',
-          path: '/groups/:groupId',
-          parentNavigatorKey: rootNavigatorKey,
-          builder: (context, state) {
-            final groupId = state.pathParameters['groupId']!;
-            return GroupDetailScreen(groupId: groupId);
-          },
         ),
       ],
     );

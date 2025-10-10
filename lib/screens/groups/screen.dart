@@ -67,6 +67,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
   void _showCreateGroupModal() {
     showCupertinoModalPopup(
       context: context,
+      useRootNavigator: true,
       builder: (context) => const GroupDetailModal(),
     );
   }
