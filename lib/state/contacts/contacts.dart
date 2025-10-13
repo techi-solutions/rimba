@@ -42,6 +42,14 @@ class ContactsState extends ChangeNotifier {
   ProfileV1? customContactProfile;
   ProfileV1? customContactProfileByUsername;
 
+  // DB Contacts for group member search
+  List<DBContact> dbContacts = [];
+  List<DBContact> filteredDbContacts = [];
+  bool isLoadingDbContacts = false;
+  bool isSearchingRemote = false;
+  DBContact? remoteSearchResult;
+  String dbContactsSearchQuery = '';
+
   Future? backgroundFetch;
 
   // state methods here
@@ -241,5 +249,92 @@ class ContactsState extends ChangeNotifier {
     }
 
     return null;
+  }
+
+  // DB Contacts methods for group member selection
+
+  /// Fetch all DB contacts (for member selection modals)
+  Future<void> fetchDbContacts() async {
+    try {
+      isLoadingDbContacts = true;
+      safeNotifyListeners();
+
+      final contacts = await _contacts.getAll();
+      dbContacts = contacts;
+      filteredDbContacts = contacts;
+    } catch (e, s) {
+      debugPrint('Error fetching DB contacts: $e');
+      debugPrint('Stack trace: $s');
+    } finally {
+      isLoadingDbContacts = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Search DB contacts by query (name, username, or account)
+  void searchDbContacts(String query) {
+    dbContactsSearchQuery = query.toLowerCase().trim();
+    remoteSearchResult = null;
+
+    if (dbContactsSearchQuery.isEmpty) {
+      filteredDbContacts = dbContacts;
+    } else {
+      filteredDbContacts = dbContacts.where((contact) {
+        final accountMatch = contact.account.toLowerCase().contains(dbContactsSearchQuery);
+        final usernameMatch = contact.username.toLowerCase().contains(dbContactsSearchQuery);
+        final nameMatch = contact.name.toLowerCase().contains(dbContactsSearchQuery);
+        return accountMatch || usernameMatch || nameMatch;
+      }).toList();
+    }
+
+    safeNotifyListeners();
+
+    // If no local results and looks like a username, search remotely
+    if (filteredDbContacts.isEmpty && _isLikelyUsername(dbContactsSearchQuery)) {
+      searchRemoteUsername(dbContactsSearchQuery);
+    }
+  }
+
+  /// Check if query looks like a username (not an address)
+  bool _isLikelyUsername(String query) {
+    final trimmed = query.replaceFirst('@', '');
+    return trimmed.isNotEmpty && 
+           !trimmed.startsWith('0x') && 
+           trimmed.length < 42; // Ethereum addresses are 42 chars with 0x
+  }
+
+  /// Search for a username on blockchain/IPFS
+  Future<void> searchRemoteUsername(String query) async {
+    try {
+      isSearchingRemote = true;
+      safeNotifyListeners();
+
+      final username = query.replaceFirst('@', '');
+      final profile = await getProfileByUsername(_config, username);
+
+      if (profile != null) {
+        final remoteContact = DBContact.fromProfile(profile);
+        
+        // Cache it in local database
+        await _contacts.upsert(remoteContact);
+        
+        remoteSearchResult = remoteContact;
+      }
+    } catch (e, s) {
+      debugPrint('Error searching remote username: $e');
+      debugPrint('Stack trace: $s');
+    } finally {
+      isSearchingRemote = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Clear DB contacts search
+  void clearDbContactsSearch() {
+    dbContactsSearchQuery = '';
+    filteredDbContacts = dbContacts;
+    remoteSearchResult = null;
+    isSearchingRemote = false;
+    safeNotifyListeners();
   }
 }

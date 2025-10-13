@@ -81,7 +81,7 @@ class GroupsState extends ChangeNotifier {
     required String name,
     String? description,
     required String amount,
-    required List<String> memberAccounts,
+    required List<String> memberIds,
   }) async {
     try {
       isLoading = true;
@@ -92,10 +92,25 @@ class GroupsState extends ChangeNotifier {
         name: name,
         description: description,
         amount: amount,
-        memberCount: memberAccounts.length,
+        memberCount: memberIds.length,
       );
 
       groups.add(newGroup);
+
+      // Send group requests to all members
+      if (memberIds.isNotEmpty) {
+        try {
+          final sentRequests = await _groupsService.sendGroupRequestsToMembers(
+            groupId: newGroup.id,
+            userIds: memberIds,
+          );
+          debugPrint(
+              'Sent ${sentRequests.length} group requests out of ${memberIds.length}');
+        } catch (e) {
+          debugPrint('Error sending group requests: $e');
+        }
+      }
+
       return newGroup;
     } catch (e) {
       error = 'Failed to create group: $e';
@@ -225,6 +240,31 @@ class GroupsState extends ChangeNotifier {
     selectedGroup = null;
     currentGroupMembers = [];
     safeNotifyListeners();
+  }
+
+  /// Send a group request to a user for the selected group
+  Future<bool> sendGroupRequest(String userId) async {
+    if (selectedGroup == null) return false;
+
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      final request = await _groupsService.sendGroupRequest(
+        userId: userId,
+        groupId: selectedGroup!.id,
+      );
+
+      return request != null;
+    } catch (e) {
+      error = 'Failed to send group request: $e';
+      debugPrint('Error sending group request: $e');
+      return false;
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
   }
 
   /// Add a member to the selected group

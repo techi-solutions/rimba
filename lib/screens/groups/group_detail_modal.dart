@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:pay_app/models/group.dart';
 import 'package:pay_app/state/groups/groups.dart';
+import 'package:pay_app/widgets/group/add_member_modal.dart';
 
 class GroupDetailModal extends StatefulWidget {
   final Group? group; // null for create, Group for edit/view
@@ -20,7 +21,7 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
-  final List<String> _memberAccounts = [];
+  final List<String> _memberIds = [];
 
   bool _isEditing = false;
   bool _isLoading = false;
@@ -199,12 +200,12 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
       }
     } catch (e) {}
 
-    if (_memberAccounts.isEmpty) {
+    if (_memberIds.isEmpty) {
       return const Text('No members added yet');
     }
 
     return Column(
-      children: _memberAccounts.asMap().entries.map((entry) {
+      children: _memberIds.asMap().entries.map((entry) {
         final index = entry.key;
         final account = entry.value;
         return _buildMemberItem(
@@ -276,8 +277,8 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
         final groupsState = context.read<GroupsState>();
         groupsState.selectGroup(widget.group!.id).then((_) {
           setState(() {
-            _memberAccounts.clear();
-            _memberAccounts.addAll(
+            _memberIds.clear();
+            _memberIds.addAll(
               groupsState.currentGroupMembers
                   .map((member) => member.contactAccount)
                   .toList(),
@@ -286,19 +287,19 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
         });
       } catch (e) {
         setState(() {
-          _memberAccounts.clear();
+          _memberIds.clear();
         });
       }
     }
   }
 
   void _addMember() {
-    showCupertinoDialog(
+    showCupertinoModalPopup(
       context: context,
-      builder: (context) => _AddMemberDialog(
-        onAdd: (account) {
+      builder: (context) => AddMemberModal(
+        onAdd: (accountOrUsername, displayName) {
           setState(() {
-            _memberAccounts.add(account);
+            _memberIds.add(accountOrUsername);
           });
         },
       ),
@@ -307,7 +308,7 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
 
   void _removeMember(int index) {
     setState(() {
-      _memberAccounts.removeAt(index);
+      _memberIds.removeAt(index);
     });
   }
 
@@ -317,7 +318,7 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
       return;
     }
 
-    if (_memberAccounts.isEmpty) {
+    if (_memberIds.isEmpty) {
       _showError('Please add at least one member');
       return;
     }
@@ -333,7 +334,7 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
           ? null
           : _descriptionController.text,
       amount: _amountController.text,
-      memberAccounts: _memberAccounts,
+      memberIds: _memberIds,
     );
 
     setState(() {
@@ -401,15 +402,19 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
 
       // Remove members that are no longer in the list
       for (final member in currentMembers) {
-        if (!_memberAccounts.contains(member)) {
+        if (!_memberIds.contains(member)) {
           await groupsState.removeGroupMember(member);
         }
       }
 
-      // Add new members
-      for (final account in _memberAccounts) {
-        if (!currentMembers.contains(account)) {
-          await groupsState.addGroupMember(account);
+      // Send requests to new members
+      for (final memberId in _memberIds) {
+        if (!currentMembers.contains(memberId)) {
+          try {
+            await groupsState.sendGroupRequest(memberId);
+          } catch (e) {
+            debugPrint('Failed to send request to $memberId: $e');
+          }
         }
       }
     } catch (e) {
@@ -430,52 +435,6 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _AddMemberDialog extends StatefulWidget {
-  final Function(String) onAdd;
-
-  const _AddMemberDialog({required this.onAdd});
-
-  @override
-  State<_AddMemberDialog> createState() => _AddMemberDialogState();
-}
-
-class _AddMemberDialogState extends State<_AddMemberDialog> {
-  final TextEditingController _accountController = TextEditingController();
-
-  @override
-  void dispose() {
-    _accountController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoAlertDialog(
-      title: const Text('Add Member'),
-      content: CupertinoTextField(
-        controller: _accountController,
-        placeholder: 'Enter account address',
-        autofocus: true,
-      ),
-      actions: [
-        CupertinoDialogAction(
-          child: const Text('Cancel'),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        CupertinoDialogAction(
-          child: const Text('Add'),
-          onPressed: () {
-            if (_accountController.text.isNotEmpty) {
-              widget.onAdd(_accountController.text);
-              Navigator.of(context).pop();
-            }
-          },
-        ),
-      ],
     );
   }
 }

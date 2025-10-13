@@ -4,18 +4,21 @@ import 'package:pay_app/models/group.dart';
 import 'package:pay_app/models/group_member.dart';
 import 'package:pay_app/models/group_request.dart';
 import 'package:pay_app/services/api/api.dart';
+import 'package:pay_app/services/request/requests.dart';
 
 class GroupsService {
   final APIService _apiService;
+  final RequestsService _requestsService;
 
   // Hardcoded test user ID for testing
   static const String _testUserId = 'cmgkykqro0007i2s5ud0tmpqx';
 
   GroupsService({
     String? baseUrl,
-  }) : _apiService = APIService(
+  })  : _apiService = APIService(
           baseURL: baseUrl ?? dotenv.env['RIMBA_API_BASE_URL'] ?? '',
-        );
+        ),
+        _requestsService = RequestsService();
 
   Future<List<Group>> getGroups() async {
     try {
@@ -300,5 +303,48 @@ class GroupsService {
       debugPrint('Stack trace: $s');
       rethrow;
     }
+  }
+
+  /// Send group request to a user
+  Future<Map<String, dynamic>?> sendGroupRequest({
+    required String userId,
+    required String groupId,
+    bool isActive = true,
+  }) async {
+    try {
+      final request = await _requestsService.createRequest(
+        userId: userId,
+        groupId: groupId,
+        isActive: isActive,
+      );
+      return request;
+    } catch (e, s) {
+      debugPrint('Failed to send group request: $e');
+      debugPrint('Stack trace: $s');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> sendGroupRequestsToMembers({
+    required String groupId,
+    required List<String> userIds,
+  }) async {
+    final List<Map<String, dynamic>> successfulRequests = [];
+
+    for (final userId in userIds) {
+      try {
+        final request = await sendGroupRequest(
+          userId: userId,
+          groupId: groupId,
+        );
+        if (request != null) {
+          successfulRequests.add(request);
+        }
+      } catch (e) {
+        debugPrint('Failed to send request to user $userId: $e');
+      }
+    }
+
+    return successfulRequests;
   }
 }
