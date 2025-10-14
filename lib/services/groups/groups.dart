@@ -10,9 +10,6 @@ class GroupsService {
   final APIService _apiService;
   final RequestsService _requestsService;
 
-  // Hardcoded test user ID for testing
-  static const String _testUserId = 'cmgkykqro0007i2s5ud0tmpqx';
-
   GroupsService({
     String? baseUrl,
   })  : _apiService = APIService(
@@ -39,9 +36,9 @@ class GroupsService {
   }
 
   /// Get groups for a specific user
-  Future<List<Group>> getUserGroups(String userId) async {
+  Future<List<Group>> getUserGroups(String userAddress) async {
     try {
-      final response = await _apiService.get(url: '/groups?userId=$userId');
+      final response = await _apiService.get(url: '/groups?userAddress=$userAddress');
 
       final Map<String, dynamic> data = response;
       if (data['success'] == true && data['data'] != null) {
@@ -61,6 +58,7 @@ class GroupsService {
     required String name,
     String? description,
     required String amount,
+    required String userAddress,
     int memberCount = 0,
   }) async {
     try {
@@ -70,6 +68,7 @@ class GroupsService {
           'name': name,
           'description': description,
           'amount': amount,
+          'userAddress': userAddress, 
           'member_count': memberCount,
         },
       );
@@ -123,10 +122,10 @@ class GroupsService {
   // Group Request methods
 
   /// Fetch all group requests for the current user
-  Future<List<GroupRequest>> getGroupRequests() async {
+  Future<List<GroupRequest>> getGroupRequests(String userAddress) async {
     try {
       final response =
-          await _apiService.get(url: '/requests/user/$_testUserId/pending');
+          await _apiService.get(url: '/requests/user/$userAddress/pending');
 
       final Map<String, dynamic> data = response;
       if (data['success'] == true && data['data'] != null) {
@@ -145,13 +144,12 @@ class GroupsService {
   }
 
   /// Accept a group request
-  Future<bool> acceptGroupRequest(String requestId) async {
+  Future<bool> acceptGroupRequest(String requestId, String userAddress) async {
     try {
       await _apiService.put(
         url: '/requests/$requestId/status',
         body: {
           'status': 'accepted',
-          'userId': _testUserId,
         },
       );
 
@@ -164,13 +162,12 @@ class GroupsService {
   }
 
   /// Decline a group request
-  Future<bool> declineGroupRequest(String requestId) async {
+  Future<bool> declineGroupRequest(String requestId, String userAddress) async {
     try {
       await _apiService.put(
         url: '/requests/$requestId/status',
         body: {
           'status': 'rejected',
-          'userId': _testUserId,
         },
       );
 
@@ -307,13 +304,13 @@ class GroupsService {
 
   /// Send group request to a user
   Future<Map<String, dynamic>?> sendGroupRequest({
-    required String userId,
+    required String userAddress,
     required String groupId,
     bool isActive = true,
   }) async {
     try {
       final request = await _requestsService.createRequest(
-        userId: userId,
+        userAddress: userAddress,
         groupId: groupId,
         isActive: isActive,
       );
@@ -327,21 +324,21 @@ class GroupsService {
 
   Future<List<Map<String, dynamic>>> sendGroupRequestsToMembers({
     required String groupId,
-    required List<String> userIds,
+    required List<String> userAddresses,
   }) async {
     final List<Map<String, dynamic>> successfulRequests = [];
 
-    for (final userId in userIds) {
+    for (final userAddress in userAddresses) {
       try {
         final request = await sendGroupRequest(
-          userId: userId,
+          userAddress: userAddress,
           groupId: groupId,
         );
         if (request != null) {
           successfulRequests.add(request);
         }
       } catch (e) {
-        debugPrint('Failed to send request to user $userId: $e');
+        debugPrint('Failed to send request to user $userAddress: $e');
       }
     }
 

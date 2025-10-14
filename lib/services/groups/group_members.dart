@@ -28,11 +28,11 @@ class GroupMembersService {
     }
   }
 
-  /// DELETE /api/v1/user-groups/{userId}/{groupId} - Remove user from group
-  Future<bool> removeUserFromGroup(String userId, String groupId) async {
+  /// DELETE /api/v1/user-groups/{userAddress}/{groupId} - Remove user from group
+  Future<bool> removeUserFromGroup(String userAddress, String groupId) async {
     try {
       final response = await apiService.delete(
-        url: '/user-groups/$userId/$groupId',
+        url: '/user-groups/$userAddress/$groupId',
         body: {},
       );
 

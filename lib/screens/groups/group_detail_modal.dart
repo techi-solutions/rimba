@@ -318,11 +318,6 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
       return;
     }
 
-    if (_memberIds.isEmpty) {
-      _showError('Please add at least one member');
-      return;
-    }
-
     setState(() {
       _isLoading = true;
     });

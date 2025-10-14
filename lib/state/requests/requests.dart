@@ -13,9 +13,6 @@ class RequestsState extends ChangeNotifier {
   // Private variables
   bool _mounted = true;
 
-  // Hardcoded test user ID
-  static const String testUserId = 'cmgkykqro0007i2s5ud0tmpqx';
-
   // Constructor
   RequestsState() {
     _requestsService = RequestsService();
@@ -38,7 +35,7 @@ class RequestsState extends ChangeNotifier {
 
   /// Create a new request
   Future<Map<String, dynamic>?> createRequest({
-    required String userId,
+    required String userAddress,
     required String groupId,
     bool isActive = true,
   }) async {
@@ -48,7 +45,7 @@ class RequestsState extends ChangeNotifier {
       safeNotifyListeners();
 
       final request = await _requestsService.createRequest(
-        userId: userId,
+        userAddress: userAddress,
         groupId: groupId,
         isActive: isActive,
       );
@@ -65,14 +62,13 @@ class RequestsState extends ChangeNotifier {
   }
 
   /// Get pending requests for a user
-  Future<void> fetchPendingRequests([String? userId]) async {
+  Future<void> fetchPendingRequests(String userAddress) async {
     try {
       isLoading = true;
       error = null;
       safeNotifyListeners();
 
-      final actualUserId = userId ?? testUserId;
-      pendingRequests = await _requestsService.getPendingRequests(actualUserId);
+      pendingRequests = await _requestsService.getPendingRequests(userAddress);
     } catch (e) {
       error = 'Failed to fetch pending requests: $e';
       print('Error fetching pending requests: $e');
@@ -86,7 +82,6 @@ class RequestsState extends ChangeNotifier {
   Future<bool> updateRequestStatus({
     required String requestId,
     required String status, // "accepted" or "rejected"
-    required String userId,
   }) async {
     try {
       isLoading = true;
@@ -96,7 +91,6 @@ class RequestsState extends ChangeNotifier {
       final success = await _requestsService.updateRequestStatus(
         requestId: requestId,
         status: status,
-        userId: userId,
       );
 
       if (success) {

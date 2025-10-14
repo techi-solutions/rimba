@@ -8,13 +8,13 @@ class RequestsService {
 
   /// POST /api/v1/requests - Create Request
   Future<Map<String, dynamic>> createRequest({
-    required String userId,
+    required String userAddress,
     required String groupId,
     bool isActive = true,
   }) async {
     try {
       final body = {
-        'userId': userId,
+        'userAddress': userAddress,
         'groupId': groupId,
         'is_Active': isActive,
       };
@@ -38,11 +38,11 @@ class RequestsService {
     }
   }
 
-  /// GET /api/v1/requests/user/{userId}/pending - Get pending requests for user
-  Future<List<Map<String, dynamic>>> getPendingRequests(String userId) async {
+  /// GET /api/v1/requests/user/{userAddress}/pending - Get pending requests for user
+  Future<List<Map<String, dynamic>>> getPendingRequests(String userAddress) async {
     try {
       final response =
-          await apiService.get(url: '/requests/user/$userId/pending');
+          await apiService.get(url: '/requests/user/$userAddress/pending');
 
       final Map<String, dynamic> data = response;
       if (data['success'] == true && data['data'] != null) {
@@ -62,12 +62,10 @@ class RequestsService {
   Future<bool> updateRequestStatus({
     required String requestId,
     required String status, // "accepted" or "rejected"
-    required String userId,
   }) async {
     try {
       final body = {
         'status': status,
-        'userId': userId,
       };
 
       final response = await apiService.put(

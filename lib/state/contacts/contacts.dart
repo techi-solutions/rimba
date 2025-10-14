@@ -251,8 +251,6 @@ class ContactsState extends ChangeNotifier {
     return null;
   }
 
-  // DB Contacts methods for group member selection
-
   /// Fetch all DB contacts (for member selection modals)
   Future<void> fetchDbContacts() async {
     try {
@@ -280,9 +278,12 @@ class ContactsState extends ChangeNotifier {
       filteredDbContacts = dbContacts;
     } else {
       filteredDbContacts = dbContacts.where((contact) {
-        final accountMatch = contact.account.toLowerCase().contains(dbContactsSearchQuery);
-        final usernameMatch = contact.username.toLowerCase().contains(dbContactsSearchQuery);
-        final nameMatch = contact.name.toLowerCase().contains(dbContactsSearchQuery);
+        final accountMatch =
+            contact.account.toLowerCase().contains(dbContactsSearchQuery);
+        final usernameMatch =
+            contact.username.toLowerCase().contains(dbContactsSearchQuery);
+        final nameMatch =
+            contact.name.toLowerCase().contains(dbContactsSearchQuery);
         return accountMatch || usernameMatch || nameMatch;
       }).toList();
     }
@@ -290,7 +291,8 @@ class ContactsState extends ChangeNotifier {
     safeNotifyListeners();
 
     // If no local results and looks like a username, search remotely
-    if (filteredDbContacts.isEmpty && _isLikelyUsername(dbContactsSearchQuery)) {
+    if (filteredDbContacts.isEmpty &&
+        _isLikelyUsername(dbContactsSearchQuery)) {
       searchRemoteUsername(dbContactsSearchQuery);
     }
   }
@@ -298,9 +300,9 @@ class ContactsState extends ChangeNotifier {
   /// Check if query looks like a username (not an address)
   bool _isLikelyUsername(String query) {
     final trimmed = query.replaceFirst('@', '');
-    return trimmed.isNotEmpty && 
-           !trimmed.startsWith('0x') && 
-           trimmed.length < 42; // Ethereum addresses are 42 chars with 0x
+    return trimmed.isNotEmpty &&
+        !trimmed.startsWith('0x') &&
+        trimmed.length < 42; // Ethereum addresses are 42 chars with 0x
   }
 
   /// Search for a username on blockchain/IPFS
@@ -314,10 +316,10 @@ class ContactsState extends ChangeNotifier {
 
       if (profile != null) {
         final remoteContact = DBContact.fromProfile(profile);
-        
+
         // Cache it in local database
         await _contacts.upsert(remoteContact);
-        
+
         remoteSearchResult = remoteContact;
       }
     } catch (e, s) {

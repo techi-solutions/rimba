@@ -62,17 +62,17 @@ class GroupMembersState extends ChangeNotifier {
   }
 
   /// Remove user from group
-  Future<bool> removeUserFromGroup(String userId, String groupId) async {
+  Future<bool> removeUserFromGroup(String userAddress, String groupId) async {
     try {
       isLoading = true;
       error = null;
       safeNotifyListeners();
 
       final success =
-          await _groupMembersService.removeUserFromGroup(userId, groupId);
+          await _groupMembersService.removeUserFromGroup(userAddress, groupId);
 
       if (success) {
-        await _groupMembersTable.removeMember(groupId, userId);
+        await _groupMembersTable.removeMember(groupId, userAddress);
 
         groupMembers = await _groupMembersTable.getByGroupId(groupId);
         safeNotifyListeners();

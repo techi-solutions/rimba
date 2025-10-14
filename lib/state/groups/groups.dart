@@ -6,11 +6,15 @@ import 'package:pay_app/models/group_request.dart';
 import 'package:pay_app/services/groups/groups.dart';
 import 'package:pay_app/services/db/app/db.dart';
 import 'package:pay_app/services/db/app/groups.dart';
+import 'package:pay_app/services/preferences/preferences.dart';
+import 'package:pay_app/services/secure/secure.dart';
 
 class GroupsState extends ChangeNotifier {
   // Services
   late GroupsService _groupsService;
   late GroupsTable _groupsTable;
+  final PreferencesService _preferences = PreferencesService();
+  final SecureService _secureService = SecureService();
 
   // State variables
   List<Group> groups = [];
@@ -32,8 +36,21 @@ class GroupsState extends ChangeNotifier {
     _groupsTable = AppDBService().groups;
   }
 
-  // Hardcoded test user ID for testing
-  static const String _testUserId = 'cmgkykqro0007i2s5ud0tmpqx';
+  String? get _userAccountAddress {
+    final lastAccount = _preferences.lastAccount;
+    if (lastAccount != null) {
+      return lastAccount;
+    }
+
+    // Fall back to secure credentials
+    final credentials = _secureService.getCredentials();
+    if (credentials == null) {
+      return null;
+    }
+
+    final (account, _) = credentials;
+    return account.hexEip55;
+  }
 
   // Safe notify listeners
   void safeNotifyListeners() {
@@ -88,33 +105,38 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
+      final creatorAccountAddress = _userAccountAddress;
+      if (creatorAccountAddress == null) {
+        error = 'No account address found';
+        return null;
+      }
+
       final newGroup = await _groupsService.createNewGroup(
         name: name,
         description: description,
         amount: amount,
-        memberCount: memberIds.length,
+        userAddress: creatorAccountAddress,
+        memberCount: memberIds.length + 1,
       );
 
       groups.add(newGroup);
 
-      // Send group requests to all members
       if (memberIds.isNotEmpty) {
         try {
-          final sentRequests = await _groupsService.sendGroupRequestsToMembers(
+          await _groupsService.sendGroupRequestsToMembers(
             groupId: newGroup.id,
-            userIds: memberIds,
+            userAddresses: memberIds,
           );
-          debugPrint(
-              'Sent ${sentRequests.length} group requests out of ${memberIds.length}');
         } catch (e) {
           debugPrint('Error sending group requests: $e');
         }
       }
 
       return newGroup;
-    } catch (e) {
+    } catch (e, stackTrace) {
       error = 'Failed to create group: $e';
       debugPrint('Error creating group: $e');
+      debugPrint('Stack trace: $stackTrace');
       return null;
     } finally {
       isLoading = false;
@@ -243,7 +265,7 @@ class GroupsState extends ChangeNotifier {
   }
 
   /// Send a group request to a user for the selected group
-  Future<bool> sendGroupRequest(String userId) async {
+  Future<bool> sendGroupRequest(String userAddress) async {
     if (selectedGroup == null) return false;
 
     try {
@@ -252,7 +274,7 @@ class GroupsState extends ChangeNotifier {
       safeNotifyListeners();
 
       final request = await _groupsService.sendGroupRequest(
-        userId: userId,
+        userAddress: userAddress,
         groupId: selectedGroup!.id,
       );
 
@@ -411,13 +433,17 @@ class GroupsState extends ChangeNotifier {
         .length;
   }
 
-  Future<void> fetchUserGroups([String? userId]) async {
+  Future<void> fetchUserGroups([String? userAddress]) async {
     try {
       isLoading = true;
       error = null;
       safeNotifyListeners();
 
-      final actualUserId = userId ?? _testUserId;
+      final actualUserAddress = userAddress ?? _userAccountAddress;
+      if (actualUserAddress == null) {
+        error = 'No account address found';
+        return;
+      }
 
       final dbGroups = await _groupsTable.getAll();
       if (dbGroups.isNotEmpty) {
@@ -425,7 +451,7 @@ class GroupsState extends ChangeNotifier {
         safeNotifyListeners();
       }
 
-      await _syncUserGroupsFromAPI(actualUserId);
+      await _syncUserGroupsFromAPI(actualUserAddress);
     } catch (e) {
       error = 'Failed to fetch user groups: $e';
       debugPrint('Error fetching user groups: $e');
@@ -447,10 +473,17 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
+      final creatorAccountAddress = _userAccountAddress;
+      if (creatorAccountAddress == null) {
+        error = 'No account address found';
+        return null;
+      }
+
       final newGroup = await _groupsService.createNewGroup(
         name: name,
         description: description,
         amount: amount,
+        userAddress: creatorAccountAddress,
         memberCount: memberCount,
       );
 
@@ -530,7 +563,13 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
-      groupRequests = await _groupsService.getGroupRequests();
+      final accountAddress = _userAccountAddress;
+      if (accountAddress == null) {
+        error = 'No account address found';
+        return;
+      }
+
+      groupRequests = await _groupsService.getGroupRequests(accountAddress);
     } catch (e) {
       error = 'Failed to fetch group requests: $e';
       debugPrint('Error fetching group requests: $e');
@@ -547,7 +586,14 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
-      final success = await _groupsService.acceptGroupRequest(requestId);
+      final accountAddress = _userAccountAddress;
+      if (accountAddress == null) {
+        error = 'No account address found';
+        return false;
+      }
+
+      final success =
+          await _groupsService.acceptGroupRequest(requestId, accountAddress);
 
       if (success) {
         // Remove from local list
@@ -572,7 +618,14 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
-      final success = await _groupsService.declineGroupRequest(requestId);
+      final accountAddress = _userAccountAddress;
+      if (accountAddress == null) {
+        error = 'No account address found';
+        return false;
+      }
+
+      final success =
+          await _groupsService.declineGroupRequest(requestId, accountAddress);
 
       if (success) {
         // Remove from local list
@@ -637,9 +690,9 @@ class GroupsState extends ChangeNotifier {
   }
 
   /// Sync user groups from API
-  Future<void> _syncUserGroupsFromAPI(String userId) async {
+  Future<void> _syncUserGroupsFromAPI(String userAddress) async {
     try {
-      final apiGroups = await _groupsService.getUserGroups(userId);
+      final apiGroups = await _groupsService.getUserGroups(userAddress);
 
       if (apiGroups.isNotEmpty) {
         // Store in database

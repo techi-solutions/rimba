@@ -19,7 +19,7 @@ class GroupMembers extends StatelessWidget {
     return Consumer<GroupsState>(
       builder: (context, groupsState, child) {
         final members = groupsState.currentGroupMembers;
-        
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -27,6 +27,10 @@ class GroupMembers extends StatelessWidget {
             children: [
               _buildMembersHeader(),
               const SizedBox(height: 16),
+              if (members.length == 1) ...[
+                _buildNeedMoreMembersBanner(),
+                const SizedBox(height: 16),
+              ],
               ...members.map<Widget>((member) => _buildMemberCard(member)),
               const SizedBox(height: 16),
               _buildAddMemberButton(),
@@ -73,9 +77,54 @@ class GroupMembers extends StatelessWidget {
     );
   }
 
+  Widget _buildNeedMoreMembersBanner() {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemOrange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border:
+            Border.all(color: CupertinoColors.systemOrange.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            CupertinoIcons.info_circle,
+            color: CupertinoColors.systemOrange,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add more members',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: CupertinoColors.label,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'A group needs at least 2 members to start the payment cycle',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textMutedColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMemberCard(GroupMember member) {
     final memberData = _calculateMemberData(member);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16.0),
@@ -128,14 +177,13 @@ class GroupMembers extends StatelessWidget {
   }
 
   Map<String, dynamic> _calculateMemberData(GroupMember member) {
-    final expectedAmount = group.memberCount > 0 
-        ? double.parse(group.amount) / group.memberCount 
+    final expectedAmount = group.memberCount > 0
+        ? double.parse(group.amount) / group.memberCount
         : 0.0;
     final contributionAmount = double.parse(member.contributionAmount);
     final isFullyPaid = contributionAmount >= expectedAmount;
-    final contributionPercentage = expectedAmount > 0 
-        ? (contributionAmount / expectedAmount * 100)
-        : 0.0;
+    final contributionPercentage =
+        expectedAmount > 0 ? (contributionAmount / expectedAmount * 100) : 0.0;
 
     return {
       'isFullyPaid': isFullyPaid,
@@ -170,7 +218,8 @@ class GroupMembers extends StatelessWidget {
     );
   }
 
-  Widget _buildMemberPaymentInfo(GroupMember member, Map<String, dynamic> memberData) {
+  Widget _buildMemberPaymentInfo(
+      GroupMember member, Map<String, dynamic> memberData) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -189,7 +238,8 @@ class GroupMembers extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: memberData['isFullyPaid'] ? primaryColor : textMutedColor,
+                color:
+                    memberData['isFullyPaid'] ? primaryColor : textMutedColor,
               ),
             ),
           ],
@@ -203,7 +253,8 @@ class GroupMembers extends StatelessWidget {
           ),
           child: FractionallySizedBox(
             alignment: Alignment.centerLeft,
-            widthFactor: (memberData['contributionPercentage'] / 100).clamp(0.0, 1.0),
+            widthFactor:
+                (memberData['contributionPercentage'] / 100).clamp(0.0, 1.0),
             child: Container(
               decoration: BoxDecoration(
                 color: memberData['isFullyPaid'] ? primaryColor : warningColor,
