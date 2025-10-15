@@ -135,23 +135,42 @@ class ContactsState extends ChangeNotifier {
 
     if (!isPotentialNumber) {
       try {
-        final potentialUsername = query.trim().replaceFirst('@', '');
+        if (_isLikelyEthereumAddress(query)) {
+          final address = query.trim();
 
-        final contact = await _contacts.getByUsername(potentialUsername);
-        final cachedProfile = contact?.getProfile();
-        if (cachedProfile != null) {
-          customContactProfileByUsername = cachedProfile;
-          safeNotifyListeners();
+          final contact = await _contacts.getByAccount(address);
+          final cachedProfile = contact?.getProfile();
+          if (cachedProfile != null) {
+            customContactProfileByUsername = cachedProfile;
+            safeNotifyListeners();
+          }
+
+          backgroundFetch = getProfile(_config, address).then((result) async {
+            if (result != null) {
+              customContactProfileByUsername = result;
+              await _contacts.upsert(DBContact.fromProfile(result));
+              safeNotifyListeners();
+            }
+          });
+        } else {
+          final potentialUsername = query.trim().replaceFirst('@', '');
+
+          final contact = await _contacts.getByUsername(potentialUsername);
+          final cachedProfile = contact?.getProfile();
+          if (cachedProfile != null) {
+            customContactProfileByUsername = cachedProfile;
+            safeNotifyListeners();
+          }
+
+          final result = await getProfileByUsername(
+            _config,
+            potentialUsername,
+          );
+
+          print('result: $result');
+
+          customContactProfileByUsername = result;
         }
-
-        final result = await getProfileByUsername(
-          _config,
-          potentialUsername,
-        );
-
-        print('result: $result');
-
-        customContactProfileByUsername = result;
       } catch (e, s) {
         print('error: $e');
         print('stack trace: $s');
@@ -270,13 +289,21 @@ class ContactsState extends ChangeNotifier {
   }
 
   /// Search DB contacts by query (name, username, or account)
-  void searchDbContacts(String query) {
+  void searchDbContacts(String query) async {
     dbContactsSearchQuery = query.toLowerCase().trim();
     remoteSearchResult = null;
 
     if (dbContactsSearchQuery.isEmpty) {
       filteredDbContacts = dbContacts;
-    } else {
+      safeNotifyListeners();
+      return;
+    }
+
+    try {
+      filteredDbContacts = await _contacts.search(dbContactsSearchQuery);
+    } catch (e, s) {
+      debugPrint('Error searching contacts: $e');
+      debugPrint('Stack trace: $s');
       filteredDbContacts = dbContacts.where((contact) {
         final accountMatch =
             contact.account.toLowerCase().contains(dbContactsSearchQuery);
@@ -290,10 +317,12 @@ class ContactsState extends ChangeNotifier {
 
     safeNotifyListeners();
 
-    // If no local results and looks like a username, search remotely
-    if (filteredDbContacts.isEmpty &&
-        _isLikelyUsername(dbContactsSearchQuery)) {
-      searchRemoteUsername(dbContactsSearchQuery);
+    if (filteredDbContacts.isEmpty) {
+      if (_isLikelyEthereumAddress(dbContactsSearchQuery)) {
+        searchRemoteAddress(dbContactsSearchQuery);
+      } else if (_isLikelyUsername(dbContactsSearchQuery)) {
+        searchRemoteUsername(dbContactsSearchQuery);
+      }
     }
   }
 
@@ -303,6 +332,13 @@ class ContactsState extends ChangeNotifier {
     return trimmed.isNotEmpty &&
         !trimmed.startsWith('0x') &&
         trimmed.length < 42; // Ethereum addresses are 42 chars with 0x
+  }
+
+  /// Check if query looks like an Ethereum address
+  bool _isLikelyEthereumAddress(String query) {
+    final trimmed = query.trim();
+    return trimmed.startsWith('0x') &&
+        (trimmed.length == 42 || trimmed.length >= 10);
   }
 
   /// Search for a username on blockchain/IPFS
@@ -324,6 +360,40 @@ class ContactsState extends ChangeNotifier {
       }
     } catch (e, s) {
       debugPrint('Error searching remote username: $e');
+      debugPrint('Stack trace: $s');
+    } finally {
+      isSearchingRemote = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Search for an address on blockchain/IPFS
+  Future<void> searchRemoteAddress(String query) async {
+    try {
+      isSearchingRemote = true;
+      safeNotifyListeners();
+
+      final address = query.trim();
+
+      // Validate it's a valid Ethereum address format
+      if (!address.startsWith('0x') || address.length != 42) {
+        debugPrint('Invalid Ethereum address format: $address');
+        return;
+      }
+
+      // Try to get the profile from the blockchain
+      final profile = await getProfile(_config, address);
+
+      if (profile != null) {
+        final remoteContact = DBContact.fromProfile(profile);
+
+        // Cache it in local database
+        await _contacts.upsert(remoteContact);
+
+        remoteSearchResult = remoteContact;
+      }
+    } catch (e, s) {
+      debugPrint('Error searching remote address: $e');
       debugPrint('Stack trace: $s');
     } finally {
       isSearchingRemote = false;

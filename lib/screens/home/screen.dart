@@ -578,12 +578,17 @@ class _HomeScreenState extends State<HomeScreen>
 
     HapticFeedback.heavyImpact();
 
+    final groupsState = context.read<GroupsState>();
+
     showCupertinoModalPopup(
       context: context,
       barrierDismissible: true,
       useRootNavigator: false,
       barrierColor: blackColor.withAlpha(160),
-      builder: (modalContext) => const GroupDetailModal(),
+      builder: (modalContext) => ChangeNotifierProvider.value(
+        value: groupsState,
+        child: const GroupDetailModal(),
+      ),
     ).then((_) {
       _backgroundColorController.reverse();
       _stopInitRetries = false;
@@ -816,6 +821,115 @@ class _HomeScreenState extends State<HomeScreen>
                         if (loading && contacts.isEmpty && isSearching)
                           SliverFillRemaining(
                             child: Center(child: CupertinoActivityIndicator()),
+                          ),
+                        // Empty state when no groups and not searching
+                        if (!groupsLoading &&
+                            groups.isEmpty &&
+                            groupRequests.isEmpty &&
+                            !isSearching &&
+                            customContact == null &&
+                            customContactProfileByUsername == null)
+                          SliverFillRemaining(
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(32.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      CupertinoIcons.person_2_square_stack,
+                                      size: 80,
+                                      color: CupertinoColors.systemGrey3,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    Text(
+                                      'Start Connecting',
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: CupertinoColors.label,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Search for people to send money\nor create a group to split payments',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: CupertinoColors.systemGrey,
+                                        height: 1.4,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 32),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 20, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color: CupertinoColors.systemGrey6,
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: const [
+                                              Icon(
+                                                CupertinoIcons.search,
+                                                color: CupertinoColors.activeBlue,
+                                                size: 20,
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'Tap search to find people',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: CupertinoColors.label,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 20, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color: CupertinoColors.systemGrey6,
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: const [
+                                              Icon(
+                                                CupertinoIcons.add_circled_solid,
+                                                color: CupertinoColors.activeBlue,
+                                                size: 20,
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'Tap + to create a group',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: CupertinoColors.label,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         if (nothingFound)
                           SliverToBoxAdapter(

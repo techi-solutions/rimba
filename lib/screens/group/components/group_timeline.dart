@@ -113,7 +113,8 @@ class GroupTimeline extends StatelessWidget {
 
   /// Calculates timeline data for the group
   Map<String, dynamic> _calculateTimelineData(List<GroupMember> members) {
-    final totalMonths = group.memberCount;
+    // Use actual member count for timeline calculation
+    final totalMonths = members.isNotEmpty ? members.length : group.memberCount;
     final monthlyAmount = double.parse(group.amount);
     final months = <Map<String, dynamic>>[];
 

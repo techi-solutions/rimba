@@ -87,7 +87,7 @@ Widget provideAccountState(
           ),
           ChangeNotifierProvider(
             key: Key('groups-$account'),
-            create: (_) => GroupsState(account: account),
+            create: (_) => GroupsState(account: account, config: config),
           ),
           ChangeNotifierProvider(
             key: Key('group-members'),

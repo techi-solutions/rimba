@@ -17,24 +17,6 @@ class GroupsService {
         ),
         _requestsService = RequestsService();
 
-  Future<List<Group>> getGroups() async {
-    try {
-      final response = await _apiService.get(url: '/groups');
-
-      final Map<String, dynamic> data = response;
-      if (data['success'] == true && data['data'] != null) {
-        final List<dynamic> groupsApiResponse = data['data'] as List;
-        return groupsApiResponse.map((group) => Group.fromMap(group)).toList();
-      }
-
-      return [];
-    } catch (e, s) {
-      debugPrint('Failed to fetch groups: $e');
-      debugPrint('Stack trace: $s');
-      rethrow;
-    }
-  }
-
   /// Get groups for a specific user
   Future<List<Group>> getUserGroups(String userAddress) async {
     try {

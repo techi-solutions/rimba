@@ -2,12 +2,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import 'package:pay_app/models/group.dart';
+import 'package:pay_app/models/group_extensions.dart';
 import 'package:pay_app/screens/groups/group_detail_modal.dart';
 import 'package:pay_app/state/groups/groups.dart';
 import 'package:pay_app/widgets/group/group_detail_header.dart';
 import 'package:pay_app/widgets/group/group_tab_bar.dart';
-import 'package:pay_app/widgets/group/group_timeline.dart';
-import 'package:pay_app/widgets/group/group_members.dart';
+import 'package:pay_app/screens/group/components/group_timeline.dart';
+import 'package:pay_app/screens/group/components/group_members.dart';
 
 /// Screen displaying detailed information about a specific group
 /// with timeline and member management tabs
@@ -118,14 +119,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           );
         }
 
+        final isCreator = group.isCreator(groupsState.userAccountAddress);
+
         return CupertinoPageScaffold(
           navigationBar: CupertinoNavigationBar(
             middle: Text(group.name),
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () => _editGroup(group),
-              child: const Text('Edit'),
-            ),
+            trailing: isCreator
+                ? CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () => _editGroup(group),
+                    child: const Text('Edit'),
+                  )
+                : null,
           ),
           child: SafeArea(
             child: Column(
@@ -157,10 +162,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   void _editGroup(Group group) {
+    final groupsState = context.read<GroupsState>();
+
     showCupertinoModalPopup(
       context: context,
       useRootNavigator: true,
-      builder: (context) => GroupDetailModal(group: group),
+      builder: (modalContext) => ChangeNotifierProvider.value(
+        value: groupsState,
+        child: GroupDetailModal(group: group),
+      ),
     );
   }
 }

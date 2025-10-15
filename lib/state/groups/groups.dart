@@ -5,16 +5,21 @@ import 'package:pay_app/models/group_member.dart';
 import 'package:pay_app/models/group_request.dart';
 import 'package:pay_app/services/groups/groups.dart';
 import 'package:pay_app/services/db/app/db.dart';
+import 'package:pay_app/services/db/app/contacts.dart';
 import 'package:pay_app/services/db/app/groups.dart';
 import 'package:pay_app/services/preferences/preferences.dart';
 import 'package:pay_app/services/secure/secure.dart';
+import 'package:pay_app/services/config/config.dart';
+import 'package:pay_app/services/wallet/wallet.dart';
 
 class GroupsState extends ChangeNotifier {
   // Services
   late GroupsService _groupsService;
   late GroupsTable _groupsTable;
+  final ContactsTable _contacts = AppDBService().contacts;
   final PreferencesService _preferences = PreferencesService();
   final SecureService _secureService = SecureService();
+  final Config _config;
 
   // State variables
   List<Group> groups = [];
@@ -31,7 +36,8 @@ class GroupsState extends ChangeNotifier {
   static const pollingInterval = 10000;
 
   // Constructor
-  GroupsState({required String account}) {
+  GroupsState({required String account, required Config config})
+      : _config = config {
     _groupsService = GroupsService();
     _groupsTable = AppDBService().groups;
   }
@@ -51,6 +57,8 @@ class GroupsState extends ChangeNotifier {
     final (account, _) = credentials;
     return account.hexEip55;
   }
+
+  String? get userAccountAddress => _userAccountAddress;
 
   // Safe notify listeners
   void safeNotifyListeners() {
@@ -199,6 +207,8 @@ class GroupsState extends ChangeNotifier {
       if (success) {
         groups.removeWhere((group) => group.id == id);
 
+        await _groupsTable.delete(id);
+
         // Clear selected group if it's the one being deleted
         if (selectedGroup?.id == id) {
           selectedGroup = null;
@@ -247,6 +257,8 @@ class GroupsState extends ChangeNotifier {
       if (group != null) {
         selectedGroup = group;
         currentGroupMembers = await _groupsService.getGroupMembers(id);
+
+        await _fetchMemberProfiles();
       }
     } catch (e) {
       error = 'Failed to select group: $e';
@@ -254,6 +266,50 @@ class GroupsState extends ChangeNotifier {
     } finally {
       isLoading = false;
       safeNotifyListeners();
+    }
+  }
+
+  Future<void> _fetchMemberProfiles() async {
+    if (currentGroupMembers.isEmpty) return;
+
+    final futures =
+        currentGroupMembers.map((member) => _fetchMemberProfile(member));
+    await Future.wait(futures);
+    safeNotifyListeners();
+  }
+
+  Future<void> _fetchMemberProfile(GroupMember member) async {
+    try {
+      // Check cache first
+      final contact = await _contacts.getByAccount(member.contactAccount);
+      final cachedProfile = contact?.getProfile();
+
+      if (cachedProfile != null) {
+        _updateMemberName(member.contactAccount, cachedProfile.name);
+        safeNotifyListeners();
+      }
+
+      // Fetch from blockchain
+      final profile = await getProfile(_config, member.contactAccount);
+      if (profile != null) {
+        _updateMemberName(member.contactAccount, profile.name);
+
+        // Cache the profile
+        await _contacts.upsert(DBContact.fromProfile(profile));
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch profile for ${member.contactAccount}: $e');
+    }
+  }
+
+  void _updateMemberName(String contactAccount, String name) {
+    final index = currentGroupMembers.indexWhere(
+      (m) => m.contactAccount == contactAccount,
+    );
+    if (index != -1) {
+      currentGroupMembers[index] = currentGroupMembers[index].copyWith(
+        memberName: name,
+      );
     }
   }
 
@@ -306,7 +362,8 @@ class GroupsState extends ChangeNotifier {
       if (newMember != null) {
         currentGroupMembers.add(newMember);
 
-        // Update the group in the list with new member count
+        await _fetchMemberProfile(newMember);
+
         final index =
             groups.indexWhere((group) => group.id == selectedGroup!.id);
         if (index != -1) {
@@ -381,8 +438,14 @@ class GroupsState extends ChangeNotifier {
       searchQuery = query;
       safeNotifyListeners();
 
+      final userAddress = _userAccountAddress;
+      if (userAddress == null) {
+        error = 'No account address found';
+        return;
+      }
+
       if (query.isEmpty) {
-        groups = await _groupsService.getGroups();
+        groups = await _groupsService.getUserGroups(userAddress);
       } else {
         groups = await _groupsService.searchGroups(query);
       }
@@ -536,6 +599,8 @@ class GroupsState extends ChangeNotifier {
       if (success) {
         groups.removeWhere((group) => group.id == groupId);
 
+        await _groupsTable.delete(groupId);
+
         // Clear selected group if it's the one being deleted
         if (selectedGroup?.id == groupId) {
           selectedGroup = null;
@@ -662,6 +727,13 @@ class GroupsState extends ChangeNotifier {
     try {
       debugPrint('Polling groups for updates');
       await _syncGroupsFromAPI();
+
+      // Also poll for group requests
+      final accountAddress = _userAccountAddress;
+      if (accountAddress != null) {
+        groupRequests = await _groupsService.getGroupRequests(accountAddress);
+        safeNotifyListeners();
+      }
     } catch (e) {
       debugPrint('Error polling groups: $e');
     }
@@ -670,19 +742,33 @@ class GroupsState extends ChangeNotifier {
   /// Sync groups from API and update database
   Future<void> _syncGroupsFromAPI() async {
     try {
-      // Get groups from API
-      final apiGroups = await _groupsService.getGroups();
-
-      if (apiGroups.isNotEmpty) {
-        // Store in database
-        for (final group in apiGroups) {
-          await _groupsTable.upsert(group);
-        }
-
-        // Update UI
-        groups = await _groupsTable.getAll();
-        safeNotifyListeners();
+      final userAddress = _userAccountAddress;
+      if (userAddress == null) {
+        debugPrint('Cannot sync groups: No user address available');
+        return;
       }
+
+      // Get groups from API for the current user
+      final apiGroups = await _groupsService.getUserGroups(userAddress);
+
+      final apiGroupIds = apiGroups.map((g) => g.id).toSet();
+
+      final localGroups = await _groupsTable.getAll();
+
+      for (final localGroup in localGroups) {
+        if (!apiGroupIds.contains(localGroup.id)) {
+          await _groupsTable.delete(localGroup.id);
+          debugPrint(
+              'Deleted group ${localGroup.id} from local DB (not in API response)');
+        }
+      }
+
+      for (final group in apiGroups) {
+        await _groupsTable.upsert(group);
+      }
+
+      groups = await _groupsTable.getAll();
+      safeNotifyListeners();
     } catch (e) {
       debugPrint('Error syncing groups from API: $e');
       // Don't throw - show cached data even if sync fails
@@ -694,16 +780,24 @@ class GroupsState extends ChangeNotifier {
     try {
       final apiGroups = await _groupsService.getUserGroups(userAddress);
 
-      if (apiGroups.isNotEmpty) {
-        // Store in database
-        for (final group in apiGroups) {
-          await _groupsTable.upsert(group);
-        }
+      final apiGroupIds = apiGroups.map((g) => g.id).toSet();
 
-        // Update UI
-        groups = await _groupsTable.getAll();
-        safeNotifyListeners();
+      final localGroups = await _groupsTable.getAll();
+
+      for (final localGroup in localGroups) {
+        if (!apiGroupIds.contains(localGroup.id)) {
+          await _groupsTable.delete(localGroup.id);
+          debugPrint(
+              'Deleted group ${localGroup.id} from local DB (not in API response)');
+        }
       }
+
+      for (final group in apiGroups) {
+        await _groupsTable.upsert(group);
+      }
+
+      groups = await _groupsTable.getAll();
+      safeNotifyListeners();
     } catch (e) {
       debugPrint('Error syncing user groups from API: $e');
     }

@@ -4,6 +4,7 @@ class Group {
   final String? description;
   final String amount;
   final int memberCount;
+  final String? createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -13,6 +14,7 @@ class Group {
     this.description,
     required this.amount,
     required this.memberCount,
+    this.createdBy,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -23,6 +25,7 @@ class Group {
     String? description,
     required String amount,
     required int memberCount,
+    String? createdBy,
   }) {
     final now = DateTime.now();
     return Group(
@@ -31,6 +34,7 @@ class Group {
       description: description,
       amount: amount,
       memberCount: memberCount,
+      createdBy: createdBy,
       createdAt: now,
       updatedAt: now,
     );
@@ -43,6 +47,7 @@ class Group {
       description: map['description'],
       amount: map['amount'],
       memberCount: map['member_count'],
+      createdBy: map['created_by'],
       createdAt: DateTime.parse(map['created_at']),
       updatedAt: DateTime.parse(map['updated_at']),
     );
@@ -55,6 +60,7 @@ class Group {
       'description': description,
       'amount': amount,
       'member_count': memberCount,
+      'created_by': createdBy,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -66,6 +72,7 @@ class Group {
     String? description,
     String? amount,
     int? memberCount,
+    String? createdBy,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -75,6 +82,7 @@ class Group {
       description: description ?? this.description,
       amount: amount ?? this.amount,
       memberCount: memberCount ?? this.memberCount,
+      createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -82,6 +90,6 @@ class Group {
 
   @override
   String toString() {
-    return 'Group(id: $id, name: $name, description: $description, amount: $amount, memberCount: $memberCount, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Group(id: $id, name: $name, description: $description, amount: $amount, memberCount: $memberCount, createdBy: $createdBy, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 }

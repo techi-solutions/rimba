@@ -21,7 +21,11 @@ class _AddMemberModalState extends State<AddMemberModal> {
   @override
   void initState() {
     super.initState();
-    _loadContacts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadContacts();
+      }
+    });
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -70,7 +74,7 @@ class _AddMemberModalState extends State<AddMemberModal> {
   @override
   Widget build(BuildContext context) {
     final contactsState = context.watch<ContactsState>();
-    
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
       decoration: const BoxDecoration(
@@ -131,8 +135,8 @@ class _AddMemberModalState extends State<AddMemberModal> {
           ),
 
           // Add manual entry button (only shown for valid account addresses)
-          if (contactsState.dbContactsSearchQuery.isNotEmpty && 
-              contactsState.filteredDbContacts.isEmpty && 
+          if (contactsState.dbContactsSearchQuery.isNotEmpty &&
+              contactsState.filteredDbContacts.isEmpty &&
               contactsState.remoteSearchResult == null &&
               !contactsState.isSearchingRemote &&
               _isValidEthereumAddress(contactsState.dbContactsSearchQuery))
@@ -180,6 +184,12 @@ class _AddMemberModalState extends State<AddMemberModal> {
 
     // Show searching indicator
     if (contactsState.isSearchingRemote) {
+      final query = contactsState.dbContactsSearchQuery;
+      final isAddress = query.startsWith('0x');
+      final displayQuery = isAddress
+          ? '${query.substring(0, 6)}...${query.substring(query.length - 4)}'
+          : '@${query.replaceFirst('@', '')}';
+
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -187,7 +197,7 @@ class _AddMemberModalState extends State<AddMemberModal> {
             const CupertinoActivityIndicator(),
             const SizedBox(height: 16),
             Text(
-              'Searching for @${contactsState.dbContactsSearchQuery.replaceFirst('@', '')}...',
+              'Searching for $displayQuery...',
               style: TextStyle(
                 fontSize: 14,
                 color: CupertinoColors.systemGrey,
@@ -274,7 +284,7 @@ class _AddMemberModalState extends State<AddMemberModal> {
               ),
             ),
             const SizedBox(width: 12),
-            
+
             // Contact info
             Expanded(
               child: Column(
@@ -313,7 +323,7 @@ class _AddMemberModalState extends State<AddMemberModal> {
                 ],
               ),
             ),
-            
+
             // Arrow icon
             const Icon(
               CupertinoIcons.chevron_right,
@@ -326,4 +336,3 @@ class _AddMemberModalState extends State<AddMemberModal> {
     );
   }
 }
-
