@@ -13,6 +13,8 @@ class GroupMembersTable extends DBTable {
     CREATE TABLE $name (
       group_id TEXT NOT NULL,
       contact_account TEXT NOT NULL,
+      member_name TEXT,
+      contribution_amount TEXT NOT NULL DEFAULT '0.00',
       created_at TEXT NOT NULL,
       PRIMARY KEY (group_id, contact_account),
       FOREIGN KEY (group_id) REFERENCES t_groups(id) ON DELETE CASCADE,
@@ -35,7 +37,21 @@ class GroupMembersTable extends DBTable {
 
   @override
   Future<void> migrate(Database db, int oldVersion, int newVersion) async {
-    // No migrations needed for version 1
+    if (oldVersion < 3 && newVersion >= 3) {
+      // Add member_name and contribution_amount columns if they don't exist
+      try {
+        await db.execute('ALTER TABLE $name ADD COLUMN member_name TEXT');
+      } catch (e) {
+        // Column already exists, ignore error
+      }
+
+      try {
+        await db.execute(
+            'ALTER TABLE $name ADD COLUMN contribution_amount TEXT NOT NULL DEFAULT \'0.00\'');
+      } catch (e) {
+        // Column already exists, ignore error
+      }
+    }
   }
 
   // Fetch all members of a group

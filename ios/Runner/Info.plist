@@ -31,7 +31,7 @@
 				<string>brussels.pay.wallet</string>
 				<key>CFBundleURLSchemes</key>
 				<array>
-					<string>zon3</string>
+					<string>rimba</string>
 				</array>
 			</dict>
 			<dict>
@@ -41,7 +41,7 @@
 				<string>xyz.zon3.wallet</string>
 				<key>CFBundleURLSchemes</key>
 				<array>
-					<string>zon3</string>
+					<string>rimba</string>
 				</array>
 			</dict>
 		</array>

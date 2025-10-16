@@ -4,6 +4,7 @@ import 'package:pay_app/services/config/config.dart';
 import 'package:pay_app/state/account.dart';
 import 'package:pay_app/state/app.dart';
 import 'package:pay_app/state/community.dart';
+import 'package:pay_app/state/connectivity.dart';
 import 'package:pay_app/state/contacts/contacts.dart';
 import 'package:pay_app/state/onboarding.dart';
 import 'package:pay_app/state/profile.dart';
@@ -30,6 +31,9 @@ Widget provideAppState(
         ),
         ChangeNotifierProvider(
           create: (_) => CommunityState(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ConnectivityState(),
         ),
         ChangeNotifierProvider(
           create: (_) => OnboardingState(config),

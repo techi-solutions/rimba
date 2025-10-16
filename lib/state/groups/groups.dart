@@ -7,6 +7,7 @@ import 'package:pay_app/services/groups/groups.dart';
 import 'package:pay_app/services/db/app/db.dart';
 import 'package:pay_app/services/db/app/contacts.dart';
 import 'package:pay_app/services/db/app/groups.dart';
+import 'package:pay_app/services/db/app/group_members.dart';
 import 'package:pay_app/services/preferences/preferences.dart';
 import 'package:pay_app/services/secure/secure.dart';
 import 'package:pay_app/services/config/config.dart';
@@ -17,6 +18,7 @@ class GroupsState extends ChangeNotifier {
   late GroupsService _groupsService;
   late GroupsTable _groupsTable;
   final ContactsTable _contacts = AppDBService().contacts;
+  final GroupMembersTable _groupMembersTable = AppDBService().groupMembers;
   final PreferencesService _preferences = PreferencesService();
   final SecureService _secureService = SecureService();
   final Config _config;
@@ -234,15 +236,66 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
+      // First, try to load from local database
+      final cachedGroup = await _groupsTable.getById(id);
+      if (cachedGroup != null) {
+        debugPrint('Loaded group $id from cache');
+        isLoading = false;
+        safeNotifyListeners();
+
+        // Try to sync with API in background
+        _syncGroupFromAPI(id);
+
+        return cachedGroup;
+      }
+
+      // If not in cache, fetch from API
       final group = await _groupsService.getGroupById(id);
+      if (group != null) {
+        await _groupsTable.upsert(group);
+      }
       return group;
     } catch (e) {
       error = 'Failed to fetch group: $e';
       debugPrint('Error fetching group: $e');
+
+      // Try one more time from cache in case of network error
+      final cachedGroup = await _groupsTable.getById(id);
+      if (cachedGroup != null) {
+        debugPrint('Returning cached group after API error');
+        return cachedGroup;
+      }
+
       return null;
     } finally {
       isLoading = false;
       safeNotifyListeners();
+    }
+  }
+
+  /// Sync a single group from API in background
+  Future<void> _syncGroupFromAPI(String id) async {
+    try {
+      final group = await _groupsService.getGroupById(id);
+      if (group != null) {
+        await _groupsTable.upsert(group);
+
+        // Update in memory if it's in the list
+        final index = groups.indexWhere((g) => g.id == id);
+        if (index != -1) {
+          groups[index] = group;
+        }
+
+        // Update selected group if it's the one we just synced
+        if (selectedGroup?.id == id) {
+          selectedGroup = group;
+        }
+
+        safeNotifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Background sync failed for group $id: $e');
+      // Fail silently - cached data is already being used
     }
   }
 
@@ -253,12 +306,50 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
-      final group = await _groupsService.getGroupById(id);
-      if (group != null) {
-        selectedGroup = group;
-        currentGroupMembers = await _groupsService.getGroupMembers(id);
+      // First, try to load from local database
+      final cachedGroup = await _groupsTable.getById(id);
+      if (cachedGroup != null) {
+        selectedGroup = cachedGroup;
+        debugPrint('Loaded selected group from cache');
+
+        // Load cached members
+        final cachedMembers = await _groupMembersTable.getByGroupId(id);
+        if (cachedMembers.isNotEmpty) {
+          currentGroupMembers = cachedMembers;
+          debugPrint('Loaded ${cachedMembers.length} group members from cache');
+          await _fetchMemberProfiles();
+        }
+
+        safeNotifyListeners();
+      }
+
+      // Try to fetch fresh data from API
+      try {
+        final group = await _groupsService.getGroupById(id);
+        if (group != null) {
+          selectedGroup = group;
+          await _groupsTable.upsert(group);
+
+          // Update in groups list
+          final index = groups.indexWhere((g) => g.id == id);
+          if (index != -1) {
+            groups[index] = group;
+          }
+        }
+
+        final apiMembers = await _groupsService.getGroupMembers(id);
+        currentGroupMembers = apiMembers;
+
+        // Cache the members
+        await _cacheGroupMembers(id, apiMembers);
 
         await _fetchMemberProfiles();
+      } catch (e) {
+        debugPrint('Failed to sync group from API, using cached data: $e');
+        // Continue with cached data - don't throw error
+        if (selectedGroup == null) {
+          throw e; // Only throw if we have no cached data
+        }
       }
     } catch (e) {
       error = 'Failed to select group: $e';
@@ -266,6 +357,24 @@ class GroupsState extends ChangeNotifier {
     } finally {
       isLoading = false;
       safeNotifyListeners();
+    }
+  }
+
+  /// Cache group members to local database
+  Future<void> _cacheGroupMembers(
+      String groupId, List<GroupMember> members) async {
+    try {
+      // Clear existing members for this group
+      await _groupMembersTable.removeAllMembers(groupId);
+
+      // Add all members
+      for (final member in members) {
+        await _groupMembersTable.addMember(member);
+      }
+
+      debugPrint('Cached ${members.length} members for group $groupId');
+    } catch (e) {
+      debugPrint('Error caching group members: $e');
     }
   }
 
@@ -362,6 +471,9 @@ class GroupsState extends ChangeNotifier {
       if (newMember != null) {
         currentGroupMembers.add(newMember);
 
+        // Cache the new member
+        await _groupMembersTable.addMember(newMember);
+
         await _fetchMemberProfile(newMember);
 
         final index =
@@ -372,6 +484,7 @@ class GroupsState extends ChangeNotifier {
           if (updatedGroup != null) {
             groups[index] = updatedGroup;
             selectedGroup = updatedGroup;
+            await _groupsTable.upsert(updatedGroup);
           }
         }
       }
@@ -406,6 +519,10 @@ class GroupsState extends ChangeNotifier {
           (member) => member.contactAccount == contactAccount,
         );
 
+        // Remove from cache
+        await _groupMembersTable.removeMember(
+            selectedGroup!.id, contactAccount);
+
         // Update the group in the list with new member count
         final index =
             groups.indexWhere((group) => group.id == selectedGroup!.id);
@@ -415,6 +532,7 @@ class GroupsState extends ChangeNotifier {
           if (updatedGroup != null) {
             groups[index] = updatedGroup;
             selectedGroup = updatedGroup;
+            await _groupsTable.upsert(updatedGroup);
           }
         }
       }
@@ -575,15 +693,66 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
+      // First, try to load from local database
+      final cachedGroup = await _groupsTable.getById(groupId);
+      if (cachedGroup != null) {
+        debugPrint('Loaded group details from cache');
+        isLoading = false;
+        safeNotifyListeners();
+
+        // Try to sync with API in background
+        _syncGroupDetailsFromAPI(groupId);
+
+        return cachedGroup;
+      }
+
+      // If not in cache, fetch from API
       final group = await _groupsService.getGroupDetails(groupId);
+      if (group != null) {
+        await _groupsTable.upsert(group);
+      }
       return group;
     } catch (e) {
       error = 'Failed to fetch group details: $e';
       debugPrint('Error fetching group details: $e');
+
+      // Try one more time from cache in case of network error
+      final cachedGroup = await _groupsTable.getById(groupId);
+      if (cachedGroup != null) {
+        debugPrint('Returning cached group details after API error');
+        return cachedGroup;
+      }
+
       return null;
     } finally {
       isLoading = false;
       safeNotifyListeners();
+    }
+  }
+
+  /// Sync group details from API in background
+  Future<void> _syncGroupDetailsFromAPI(String groupId) async {
+    try {
+      final group = await _groupsService.getGroupDetails(groupId);
+      if (group != null) {
+        await _groupsTable.upsert(group);
+
+        // Update in memory if it's in the list
+        final index = groups.indexWhere((g) => g.id == groupId);
+        if (index != -1) {
+          groups[index] = group;
+        }
+
+        // Update selected group if it's the one we just synced
+        if (selectedGroup?.id == groupId) {
+          selectedGroup = group;
+        }
+
+        safeNotifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Background sync failed for group details $groupId: $e');
+      // Fail silently - cached data is already being used
     }
   }
 

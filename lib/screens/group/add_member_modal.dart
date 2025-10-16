@@ -17,6 +17,7 @@ class AddMemberModal extends StatefulWidget {
 
 class _AddMemberModalState extends State<AddMemberModal> {
   final TextEditingController _searchController = TextEditingController();
+  ContactsState? _contactsState;
 
   @override
   void initState() {
@@ -30,23 +31,29 @@ class _AddMemberModalState extends State<AddMemberModal> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _contactsState ??= context.read<ContactsState>();
+  }
+
+  @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
-    final contactsState = context.read<ContactsState>();
-    contactsState.clearDbContactsSearch();
+    if (_contactsState != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _contactsState?.clearDbContactsSearch();
+      });
+    }
     super.dispose();
   }
 
   Future<void> _loadContacts() async {
-    final contactsState = context.read<ContactsState>();
-    await contactsState.fetchDbContacts();
+    await _contactsState?.fetchDbContacts();
   }
 
   void _onSearchChanged() {
-    final query = _searchController.text;
-    final contactsState = context.read<ContactsState>();
-    contactsState.searchDbContacts(query);
+    _contactsState?.searchDbContacts(_searchController.text);
   }
 
   void _selectContact(DBContact contact) {
@@ -166,8 +173,8 @@ class _AddMemberModalState extends State<AddMemberModal> {
     if (contactsState.remoteSearchResult != null) {
       return Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
+          const Padding(
+            padding: EdgeInsets.all(16.0),
             child: Text(
               'Found user',
               style: TextStyle(
@@ -198,7 +205,7 @@ class _AddMemberModalState extends State<AddMemberModal> {
             const SizedBox(height: 16),
             Text(
               'Searching for $displayQuery...',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 color: CupertinoColors.systemGrey,
               ),
@@ -213,7 +220,7 @@ class _AddMemberModalState extends State<AddMemberModal> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               CupertinoIcons.person_2,
               size: 64,
               color: CupertinoColors.systemGrey,
@@ -223,14 +230,14 @@ class _AddMemberModalState extends State<AddMemberModal> {
               contactsState.dbContactsSearchQuery.isEmpty
                   ? 'No contacts available'
                   : 'No contacts found',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
                 color: CupertinoColors.systemGrey,
               ),
             ),
             if (contactsState.dbContactsSearchQuery.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 'Tap the button below to add manually',
                 style: TextStyle(
                   fontSize: 14,
@@ -284,7 +291,6 @@ class _AddMemberModalState extends State<AddMemberModal> {
               ),
             ),
             const SizedBox(width: 12),
-
             // Contact info
             Expanded(
               child: Column(
@@ -323,7 +329,6 @@ class _AddMemberModalState extends State<AddMemberModal> {
                 ],
               ),
             ),
-
             // Arrow icon
             const Icon(
               CupertinoIcons.chevron_right,

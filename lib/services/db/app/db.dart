@@ -50,7 +50,7 @@ class AppDBService extends DBService {
         await userOperations.migrate(db, oldVersion, newVersion);
         return;
       },
-      version: 2,
+      version: 3,
     );
 
     final db = await databaseFactory.openDatabase(
