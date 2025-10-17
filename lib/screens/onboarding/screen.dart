@@ -133,6 +133,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     final community = context.select((CommunityState state) => state.community);
 
+    final double logoSize = (width * 0.35).clamp(100.0, 140.0);
+
     final sessionRequestStatus =
         context.select((OnboardingState state) => state.sessionRequestStatus);
 
@@ -174,7 +176,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Logo
-                      CoinLogo(size: 140),
+                      CoinLogo(size: logoSize),
 
                       const SizedBox(height: 24),
 

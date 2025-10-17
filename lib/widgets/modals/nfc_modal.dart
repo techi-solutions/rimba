@@ -125,6 +125,10 @@ class NFCModalState extends State<NFCModal>
 
     final message = context.watch<ScanState>().message;
 
+    final double nfcCardWidth =
+        width < 375 ? width * 0.85 : (width * 0.65).clamp(200.0, 240.0);
+    final double nfcCardHeight = nfcCardWidth * 0.67;
+
     return CupertinoPageScaffold(
         backgroundColor: Colors.black,
         child: Container(
@@ -149,8 +153,8 @@ class NFCModalState extends State<NFCModal>
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Container(
-                            height: 160,
-                            width: 240,
+                            height: nfcCardHeight,
+                            width: nfcCardWidth,
                             decoration: BoxDecoration(
                               color: whiteColor.withAlpha(20),
                               borderRadius: BorderRadius.circular(10),
@@ -200,8 +204,8 @@ class NFCModalState extends State<NFCModal>
                             ),
                           ),
                           Container(
-                            height: 160,
-                            width: 240,
+                            height: nfcCardHeight,
+                            width: nfcCardWidth,
                             decoration: BoxDecoration(
                               color: whiteColor.withAlpha(20),
                               borderRadius: BorderRadius.circular(10),

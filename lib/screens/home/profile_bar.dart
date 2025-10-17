@@ -95,6 +95,7 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
   ) {
     final safeArea = MediaQuery.of(context).padding;
     final width = MediaQuery.of(context).size.width;
+    final height = MediaQuery.of(context).size.height;
     final adjustedWidth = widget.small ? width * 0.8 : width;
 
     final primaryColor = context.select<AppState, Color>(
@@ -103,12 +104,16 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
 
     final appProfile = context.watch<ProfileState>().appProfile;
 
-    double cardWidth = (adjustedWidth < 360 ? 360 : adjustedWidth) * 0.8;
+    double cardWidth = adjustedWidth * 0.8;
+
+    double containerHeight = widget.small
+        ? (height * 0.35).clamp(240.0, 280.0)
+        : (height * 0.4).clamp(280.0, 320.0);
 
     return BlurryChild(
       child: Container(
         width: width,
-        height: widget.small ? 280 : 320,
+        height: containerHeight,
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -127,7 +132,7 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
               ),
             if (!appProfile.isAnonymous)
               SizedBox(
-                height: widget.small ? 220 : 260,
+                height: containerHeight - safeArea.top - 20,
                 width: width,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
