@@ -8,34 +8,27 @@ import 'package:go_router/go_router.dart';
 import 'package:pay_app/models/interaction.dart';
 import 'package:pay_app/models/order.dart';
 import 'package:pay_app/models/group.dart';
-import 'package:pay_app/screens/home/contact_list_item.dart';
-import 'package:pay_app/screens/home/profile_list_item.dart';
 import 'package:pay_app/screens/home/profile_modal.dart';
 import 'package:pay_app/screens/home/group_list_item.dart';
 import 'package:pay_app/widgets/groups/group_request_list_item.dart';
 import 'package:pay_app/screens/home/profile_bar.dart';
 import 'package:pay_app/screens/groups/group_detail_modal.dart';
 import 'package:pay_app/services/contacts/contacts.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
 import 'package:pay_app/services/config/config.dart';
 import 'package:pay_app/state/app.dart';
 import 'package:pay_app/state/contacts/contacts.dart';
-import 'package:pay_app/state/contacts/selectors.dart';
 import 'package:pay_app/state/onboarding.dart';
-import 'package:pay_app/state/profile.dart';
 import 'package:pay_app/state/topup.dart';
 import 'package:pay_app/state/transactions/transactions.dart';
 import 'package:pay_app/state/wallet.dart';
 import 'package:pay_app/state/groups/groups.dart';
 import 'package:pay_app/theme/colors.dart';
 import 'package:pay_app/utils/delay.dart';
-import 'package:pay_app/widgets/modals/confirm_modal.dart';
 import 'package:pay_app/widgets/toast/toast.dart';
 import 'package:pay_app/widgets/modals/topup_coming_soon_modal.dart';
 import 'package:pay_app/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:toastification/toastification.dart';
-import 'package:universal_io/io.dart';
 import 'package:web3dart/web3dart.dart';
 import 'package:pay_app/models/transaction.dart' as tx;
 
@@ -70,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen>
       Debouncer(timerDuration: const Duration(milliseconds: 300));
 
   late AppState _appState;
-  late ProfileState _profileState;
   late OnboardingState _onboardingState;
   late WalletState _walletState;
   late ContactsState _contactsState;
@@ -116,7 +108,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _initState() {
     _appState = context.read<AppState>();
-    _profileState = context.read<ProfileState>();
     _onboardingState = context.read<OnboardingState>();
     _walletState = context.read<WalletState>();
     _contactsState = context.read<ContactsState>();
@@ -222,35 +213,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _searchListener() async {
     if (_searchFocusNode.hasFocus) {
-      if (Platform.isAndroid) {
-        if (PreferencesService().contactPermission == null) {
-          final confirmed = await showCupertinoModalPopup<bool>(
-            context: context,
-            barrierDismissible: true,
-            barrierColor: blackColor.withAlpha(160),
-            builder: (modalContext) => ConfirmModal(
-              title: AppLocalizations.of(context)!.displayContacts,
-              details: [
-                'This app uses your contact list to help you search for the right person.',
-                'No contact data is sent to our servers.',
-                'We generate the account number on device.',
-              ],
-              cancelText: AppLocalizations.of(context)!.skip,
-              confirmText: AppLocalizations.of(context)!.allow,
-            ),
-          );
-
-          PreferencesService().setContactPermission(confirmed ?? false);
-        }
-
-        final hasPermission = PreferencesService().contactPermission;
-
-        if (hasPermission == true) {
-          _contactsState.fetchContacts();
-        }
-      } else {
-        _contactsState.fetchContacts();
-      }
       setState(() {
         isKeyboardVisible = true;
         isSearching = true;
@@ -520,18 +482,11 @@ class _HomeScreenState extends State<HomeScreen>
 
     await delay(const Duration(milliseconds: 500));
 
-    // _interactionState.clearSearch();
-    // _placesState.clearSearch();
-    _contactsState.clearSearch();
     _groupsState.clearSearch();
   }
 
   void handleSearch(String query) {
-    // _interactionState.startSearching();
     _debouncer.resetDebounce(() {
-      // _interactionState.setSearchQuery(query);
-      // _placesState.setSearchQuery(query);
-      _contactsState.setSearchQuery(query);
       _groupsState.searchGroups(query);
     });
   }
@@ -619,11 +574,6 @@ class _HomeScreenState extends State<HomeScreen>
 
     final loading = context.select((WalletState state) => state.loading);
 
-    final contacts = context.select(selectFilteredContacts);
-    final customContact = context.select(selectCustomContact);
-    final customContactProfileByUsername = context
-        .select((ContactsState state) => state.customContactProfileByUsername);
-
     final myAddress =
         context.select((WalletState state) => state.address?.hexEip55);
 
@@ -645,12 +595,9 @@ class _HomeScreenState extends State<HomeScreen>
         context.select((GroupsState state) => state.isLoading);
 
     final config = context.select((WalletState state) => state.config);
-    // final currentTokenAddress =
-    //     context.select((AppState state) => state.currentTokenAddress);
-    // final tokenConfig = config.getToken(currentTokenAddress);
 
     final nothingFound =
-        _searchController.text.isNotEmpty && contacts.isEmpty && groups.isEmpty;
+        _searchController.text.isNotEmpty && groups.isEmpty;
 
     return AnimatedBuilder(
       animation: _backgroundColorAnimation,
@@ -701,33 +648,6 @@ class _HomeScreenState extends State<HomeScreen>
                         CupertinoSliverRefreshControl(
                           onRefresh: handleRefresh,
                         ),
-                        if (customContact != null)
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              childCount: 1,
-                              (context, index) => ContactListItem(
-                                contact: customContact,
-                                onTap: (contact) =>
-                                    handleInteractionWithContact(
-                                  myAddress,
-                                  contact,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (customContactProfileByUsername != null)
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              childCount: 1,
-                              (context, index) => ProfileListItem(
-                                profile: customContactProfileByUsername,
-                                onTap: (profile) => handleInteractionWithUser(
-                                  myAddress,
-                                  profile.account,
-                                ),
-                              ),
-                            ),
-                          ),
                         // Group Requests Section
                         if (groupRequests.isNotEmpty && !isSearching)
                           SliverToBoxAdapter(
@@ -774,7 +694,8 @@ class _HomeScreenState extends State<HomeScreen>
                               color: CupertinoColors.separator,
                             ),
                           ),
-                        if (groups.isNotEmpty && !isSearching)
+                        // Groups list - show in both search and non-search mode
+                        if (groups.isNotEmpty)
                           SliverList(
                             delegate: SliverChildBuilderDelegate(
                               childCount: groups.length,
@@ -787,38 +708,7 @@ class _HomeScreenState extends State<HomeScreen>
                               },
                             ),
                           ),
-                        // SliverList(
-                        //   delegate: SliverChildBuilderDelegate(
-                        //     childCount: places.length,
-                        //     (context, index) => PlaceListItem(
-                        //       place: places[index],
-                        //       onTap: (place) =>
-                        //           handleInteractionWithPlace(
-                        //         myAddress,
-                        //         place.slug,
-                        //       ),
-                        //     ),
-                        //   ),
-                        // ),
-                        if (contacts.isNotEmpty && isSearching)
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              childCount: contacts.length,
-                              (context, index) => ContactListItem(
-                                contact: contacts[index],
-                                onTap: (contact) =>
-                                    handleInteractionWithContact(
-                                  myAddress,
-                                  contact,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (groupsLoading && groups.isEmpty && !isSearching)
-                          SliverFillRemaining(
-                            child: Center(child: CupertinoActivityIndicator()),
-                          ),
-                        if (loading && contacts.isEmpty && isSearching)
+                        if (groupsLoading && groups.isEmpty)
                           SliverFillRemaining(
                             child: Center(child: CupertinoActivityIndicator()),
                           ),
@@ -826,9 +716,7 @@ class _HomeScreenState extends State<HomeScreen>
                         if (!groupsLoading &&
                             groups.isEmpty &&
                             groupRequests.isEmpty &&
-                            !isSearching &&
-                            customContact == null &&
-                            customContactProfileByUsername == null)
+                            !isSearching)
                           SliverFillRemaining(
                             child: Center(
                               child: Padding(
@@ -852,7 +740,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      'Search for people to send money\nor create a group to split payments',
+                                      'Create a group to split payments\nwith friends and family',
                                       style: const TextStyle(
                                         fontSize: 16,
                                         color: CupertinoColors.systemGrey,
@@ -881,7 +769,7 @@ class _HomeScreenState extends State<HomeScreen>
                                               ),
                                               SizedBox(width: 8),
                                               Text(
-                                                'Tap search to find people',
+                                                'Tap search to find groups',
                                                 style: TextStyle(
                                                   fontSize: 14,
                                                   color: CupertinoColors.label,
