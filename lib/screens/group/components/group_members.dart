@@ -37,8 +37,6 @@ class _GroupMembersState extends State<GroupMembers> {
             children: [
               _buildMembersHeader(),
               const SizedBox(height: 16),
-              _buildInviteLinkSection(),
-              const SizedBox(height: 16),
               if (members.length == 1 && isCreator) ...[
                 _buildNeedMoreMembersBanner(),
                 const SizedBox(height: 16),
@@ -95,83 +93,6 @@ class _GroupMembersState extends State<GroupMembers> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildInviteLinkSection() {
-    final inviteLink = 'rimba://invite/${widget.group.id}';
-
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBlue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: CupertinoColors.systemBlue.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                CupertinoIcons.link,
-                color: CupertinoColors.systemBlue,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Invite Link',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: whiteColor,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: mutedColor),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    inviteLink,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: textMutedColor,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  minSize: 0,
-                  onPressed: () => _copyInviteLink(inviteLink),
-                  child: const Icon(
-                    CupertinoIcons.doc_on_clipboard,
-                    color: CupertinoColors.systemBlue,
-                    size: 20,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Share this link with others to invite them to the group',
-            style: TextStyle(
-              fontSize: 12,
-              color: textMutedColor,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -365,30 +286,6 @@ class _GroupMembersState extends State<GroupMembers> {
         child: const Text('Add Member'),
       ),
     );
-  }
-
-  void _copyInviteLink(String inviteLink) async {
-    HapticFeedback.lightImpact();
-
-    await Clipboard.setData(ClipboardData(text: inviteLink));
-
-    if (mounted) {
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: const Text('Link Copied'),
-          content: const Text(
-            'The invite link has been copied to your clipboard. You can now share it with others!',
-          ),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text('OK'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        ),
-      );
-    }
   }
 
   void _addMember() async {

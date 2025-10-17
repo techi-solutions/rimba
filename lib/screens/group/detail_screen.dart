@@ -9,6 +9,7 @@ import 'package:pay_app/widgets/group/group_detail_header.dart';
 import 'package:pay_app/widgets/group/group_tab_bar.dart';
 import 'package:pay_app/screens/group/components/group_timeline.dart';
 import 'package:pay_app/screens/group/components/group_members.dart';
+import 'package:pay_app/services/share/share.dart';
 
 /// Screen displaying detailed information about a specific group
 /// with timeline and member management tabs
@@ -124,13 +125,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         return CupertinoPageScaffold(
           navigationBar: CupertinoNavigationBar(
             middle: Text(group.name),
-            trailing: isCreator
-                ? CupertinoButton(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: () => _shareGroup(group),
+                  child: const Icon(CupertinoIcons.share),
+                ),
+                if (isCreator) ...[
+                  const SizedBox(width: 8),
+                  CupertinoButton(
                     padding: EdgeInsets.zero,
                     onPressed: () => _editGroup(group),
                     child: const Text('Edit'),
-                  )
-                : null,
+                  ),
+                ],
+              ],
+            ),
           ),
           child: SafeArea(
             child: Column(
@@ -171,6 +183,26 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         value: groupsState,
         child: GroupDetailModal(group: group),
       ),
+    );
+  }
+
+  void _shareGroup(Group group) {
+    // Generate the deeplink for the group
+    // Format: https://rimba.app/group/join?groupId=xxx&groupName=xxx
+    final groupLink =
+        'rimba://rimba.app/group/join?groupId=${group.id}&groupName=${Uri.encodeComponent(group.name)}';
+
+    // Get the share position for iPad popover
+    final box = context.findRenderObject() as RenderBox?;
+    final sharePositionOrigin =
+        box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+
+    // Share using the sharing service
+    SharingService().shareGroupLink(
+      group.name,
+      group.id,
+      link: groupLink,
+      sharePositionOrigin: sharePositionOrigin,
     );
   }
 }

@@ -548,38 +548,15 @@ class GroupsState extends ChangeNotifier {
     }
   }
 
-  /// Search groups
-  Future<void> searchGroups(String query) async {
-    try {
-      isLoading = true;
-      error = null;
-      searchQuery = query;
-      safeNotifyListeners();
-
-      final userAddress = _userAccountAddress;
-      if (userAddress == null) {
-        error = 'No account address found';
-        return;
-      }
-
-      if (query.isEmpty) {
-        groups = await _groupsService.getUserGroups(userAddress);
-      } else {
-        groups = await _groupsService.searchGroups(query);
-      }
-    } catch (e) {
-      error = 'Failed to search groups: $e';
-      debugPrint('Error searching groups: $e');
-    } finally {
-      isLoading = false;
-      safeNotifyListeners();
-    }
+  void searchGroups(String query) {
+    searchQuery = query;
+    safeNotifyListeners();
   }
 
   /// Clear search
   void clearSearch() {
     searchQuery = '';
-    fetchGroups();
+    safeNotifyListeners();
   }
 
   /// Clear error

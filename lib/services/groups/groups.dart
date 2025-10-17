@@ -233,11 +233,10 @@ class GroupsService {
   }) async {
     try {
       final response = await _apiService.post(
-        url: '/groups/$groupId/users',
+        url: '/user-groups',
         body: {
-          'contactAccount': contactAccount,
-          'memberName': memberName,
-          'contributionAmount': contributionAmount,
+          'userAddress': contactAccount,
+          'groupId': groupId,
         },
       );
 

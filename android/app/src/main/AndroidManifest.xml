@@ -25,6 +25,16 @@
                 <data android:scheme="rimba"/>
             </intent-filter>
 
+            <!-- HTTPS Deep Links for Universal Links -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
+                <data android:scheme="http"/>
+                <data android:host="rimba.app"/>
+                <data android:pathPrefix="/group"/>
+            </intent-filter>
 
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED"/>

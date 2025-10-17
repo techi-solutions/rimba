@@ -31,9 +31,15 @@ void main() async {
   await dotenv.load(fileName: '.env');
   await init();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    if (kDebugMode) {
+      print('Firebase initialization skipped: $e');
+    }
+  }
 
   // Crashlytics setup
   FlutterError.onError = (errorDetails) {
@@ -103,7 +109,7 @@ class _MyAppState extends State<MyApp> {
 
   void _initDeepLinkHandling() async {
     _appLinks = AppLinks();
-    
+
     try {
       final initialUri = await _appLinks.getInitialLink();
       if (initialUri != null) {
@@ -121,10 +127,36 @@ class _MyAppState extends State<MyApp> {
 
   void _handleIncomingUri(Uri uri) {
     debugPrint('Deep link received: $uri');
-    
+
     Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) {
-        router.go('/');
+        final connectedAccountAddress =
+            _onboardingState.connectedAccountAddress;
+
+        if (connectedAccountAddress == null) {
+          router.go('/');
+          return;
+        }
+
+        final path = uri.path;
+        final queryParams = uri.queryParameters;
+
+        // Handle group join deeplinks
+        // Format: https://rimba.app/group/join?groupId=xxx&groupName=xxx
+        // Or: rimba://group/join?groupId=xxx&groupName=xxx
+        if (path.contains('/group/join') ||
+            path.contains('group') && queryParams.containsKey('groupId')) {
+          final groupId = queryParams['groupId'];
+          final groupName = queryParams['groupName'];
+
+          if (groupId != null && groupId.isNotEmpty) {
+            router.go(
+                '/group/join?groupId=$groupId${groupName != null ? '&groupName=${Uri.encodeComponent(groupName)}' : ''}');
+            return;
+          }
+        }
+
+        router.go('/home');
       }
     });
   }

@@ -41,6 +41,10 @@
 		<false/>
 		<key>FlutterDeepLinkingEnabled</key>
 		<true/>
+		<key>com.apple.developer.associated-domains</key>
+		<array>
+			<string>applinks:rimba.app</string>
+		</array>
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 		<key>LSApplicationQueriesSchemes</key>

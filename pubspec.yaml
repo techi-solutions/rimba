@@ -87,6 +87,7 @@ dependencies:
   audio_in_app: ^2.1.1
   connectivity_plus: ^6.1.2
   app_links: ^6.3.2
+  share_plus: ^10.1.3
 
 dev_dependencies:
   flutter_test:
