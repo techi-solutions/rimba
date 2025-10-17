@@ -78,8 +78,7 @@ class _TokenModalState extends State<CardActionsModal> {
     final tokenConfig = context.select<AppState, TokenConfig>(
       (state) => state.currentTokenConfig,
     );
-
-    double cardWidth = (width < 360 ? 360 : width) * 0.8;
+    double cardWidth = width * 0.8;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

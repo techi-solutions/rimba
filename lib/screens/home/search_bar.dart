@@ -19,8 +19,12 @@ class SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    final double searchBarHeight = (screenHeight * 0.08).clamp(50.0, 64.0);
+
     return Container(
-      height: 57,
+      height: searchBarHeight,
       decoration: BoxDecoration(
         color: backgroundColor ?? CupertinoColors.systemBackground,
       ),

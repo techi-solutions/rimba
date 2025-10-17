@@ -173,7 +173,10 @@ class _ProfileModalState extends State<ProfileModal> {
   ) {
     final width = MediaQuery.of(context).size.width;
     final safeArea = MediaQuery.of(context).padding;
-    const headerHeight = 276.9;
+
+    final cardWidth = width * 0.8;
+    final cardHeight = cardWidth / 1.586;
+    final headerHeight = cardHeight + 90;
 
     final balance = context.watch<WalletState>().tokenBalances[
             widget.tokenAddress ??
