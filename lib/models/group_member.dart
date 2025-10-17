@@ -3,6 +3,7 @@ class GroupMember {
   final String contactAccount;
   final String? memberName;
   final String contributionAmount;
+  final int payoutPosition;
   final DateTime createdAt;
 
   GroupMember({
@@ -10,6 +11,7 @@ class GroupMember {
     required this.contactAccount,
     this.memberName,
     required this.contributionAmount,
+    required this.payoutPosition,
     required this.createdAt,
   });
 
@@ -18,12 +20,14 @@ class GroupMember {
     required String contactAccount,
     String? memberName,
     String contributionAmount = '0.00',
+    int payoutPosition = 0,
   }) {
     return GroupMember(
       groupId: groupId,
       contactAccount: contactAccount,
       memberName: memberName,
       contributionAmount: contributionAmount,
+      payoutPosition: payoutPosition,
       createdAt: DateTime.now(),
     );
   }
@@ -37,6 +41,8 @@ class GroupMember {
       memberName: user?['name'] as String?,
       contributionAmount:
           (map['contribution_amount'] ?? map['contributionAmount']) ?? '0.00',
+      payoutPosition:
+          (map['payout_position'] ?? map['payoutPosition'] ?? 0) as int,
       createdAt:
           DateTime.parse((map['created_at'] ?? map['createdAt']) as String),
     );
@@ -48,6 +54,7 @@ class GroupMember {
       'contact_account': contactAccount,
       'member_name': memberName,
       'contribution_amount': contributionAmount,
+      'payout_position': payoutPosition,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -57,6 +64,7 @@ class GroupMember {
     String? contactAccount,
     String? memberName,
     String? contributionAmount,
+    int? payoutPosition,
     DateTime? createdAt,
   }) {
     return GroupMember(
@@ -64,12 +72,13 @@ class GroupMember {
       contactAccount: contactAccount ?? this.contactAccount,
       memberName: memberName ?? this.memberName,
       contributionAmount: contributionAmount ?? this.contributionAmount,
+      payoutPosition: payoutPosition ?? this.payoutPosition,
       createdAt: createdAt ?? this.createdAt,
     );
   }
 
   @override
   String toString() {
-    return 'GroupMember(groupId: $groupId, contactAccount: $contactAccount, memberName: $memberName, contributionAmount: $contributionAmount, createdAt: $createdAt)';
+    return 'GroupMember(groupId: $groupId, contactAccount: $contactAccount, memberName: $memberName, contributionAmount: $contributionAmount, payoutPosition: $payoutPosition, createdAt: $createdAt)';
   }
 }

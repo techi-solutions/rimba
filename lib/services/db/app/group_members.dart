@@ -15,6 +15,7 @@ class GroupMembersTable extends DBTable {
       contact_account TEXT NOT NULL,
       member_name TEXT,
       contribution_amount TEXT NOT NULL DEFAULT '0.00',
+      payout_position INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       PRIMARY KEY (group_id, contact_account),
       FOREIGN KEY (group_id) REFERENCES t_groups(id) ON DELETE CASCADE,
@@ -32,6 +33,9 @@ class GroupMembersTable extends DBTable {
     ''');
     await db.execute('''
       CREATE INDEX idx_${name}_contact ON $name (contact_account)
+    ''');
+    await db.execute('''
+      CREATE INDEX idx_${name}_payout_position ON $name (group_id, payout_position)
     ''');
   }
 
@@ -52,6 +56,16 @@ class GroupMembersTable extends DBTable {
         // Column already exists, ignore error
       }
     }
+
+    if (oldVersion < 4 && newVersion >= 4) {
+      // Add payout_position column if it doesn't exist
+      try {
+        await db.execute(
+            'ALTER TABLE $name ADD COLUMN payout_position INTEGER NOT NULL DEFAULT 0');
+      } catch (e) {
+        // Column already exists, ignore error
+      }
+    }
   }
 
   // Fetch all members of a group
@@ -60,7 +74,7 @@ class GroupMembersTable extends DBTable {
       name,
       where: 'group_id = ?',
       whereArgs: [groupId],
-      orderBy: 'created_at ASC',
+      orderBy: 'payout_position ASC',
     );
     return List.generate(maps.length, (i) => GroupMember.fromMap(maps[i]));
   }
@@ -120,5 +134,33 @@ class GroupMembersTable extends DBTable {
       [groupId],
     );
     return result.first['count'] as int;
+  }
+
+  // Get the next available payout position for a group
+  Future<int> getNextPayoutPosition(String groupId) async {
+    final result = await db.rawQuery(
+      'SELECT MAX(payout_position) as max_position FROM $name WHERE group_id = ?',
+      [groupId],
+    );
+
+    final maxPosition = result.first['max_position'];
+    if (maxPosition == null) {
+      return 0; // First member gets position 0
+    }
+    return (maxPosition as int) + 1;
+  }
+
+  // Update the payout position of a member
+  Future<void> updatePayoutPosition(
+    String groupId,
+    String contactAccount,
+    int newPosition,
+  ) async {
+    await db.update(
+      name,
+      {'payout_position': newPosition},
+      where: 'group_id = ? AND contact_account = ?',
+      whereArgs: [groupId, contactAccount],
+    );
   }
 }

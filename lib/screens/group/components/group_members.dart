@@ -8,6 +8,7 @@ import 'package:pay_app/state/groups/groups.dart';
 import 'package:pay_app/state/contacts/contacts.dart';
 import 'package:pay_app/theme/colors.dart';
 import 'package:pay_app/screens/group/add_member_modal.dart';
+import 'package:pay_app/utils/payment_calc.dart';
 
 class GroupMembers extends StatefulWidget {
   final Group group;
@@ -167,12 +168,35 @@ class _GroupMembersState extends State<GroupMembers> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      member.memberName ?? 'Unknown Member',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          member.memberName ?? 'Unknown Member',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Month ${member.payoutPosition + 1}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -202,8 +226,13 @@ class _GroupMembersState extends State<GroupMembers> {
         members.isNotEmpty ? members.length : widget.group.memberCount;
 
     final expectedAmount = actualMemberCount > 0
-        ? double.parse(widget.group.amount) / actualMemberCount
+        ? PaymentCalculator.calculateMonthlyContribution(
+            totalPoolAmount: double.parse(widget.group.amount),
+            memberCount: actualMemberCount,
+            position: member.payoutPosition,
+          )
         : 0.0;
+
     final contributionAmount = double.parse(member.contributionAmount);
     final isFullyPaid = contributionAmount >= expectedAmount;
     final contributionPercentage =
@@ -214,6 +243,7 @@ class _GroupMembersState extends State<GroupMembers> {
       'contributionPercentage': contributionPercentage,
       'contributionAmount': contributionAmount,
       'expectedAmount': expectedAmount,
+      'payoutPosition': member.payoutPosition,
     };
   }
 
