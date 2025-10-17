@@ -105,34 +105,28 @@ class _MyAppState extends State<MyApp> {
     _appLinks = AppLinks();
     
     try {
-      // Handle app start with link
       final initialUri = await _appLinks.getInitialLink();
       if (initialUri != null) {
         _handleIncomingUri(initialUri);
       }
 
-      // Handle link while app is running
-      _linkSub = _appLinks.uriLinkStream.listen((Uri uri) {
-        _handleIncomingUri(uri);
-      }, onError: (err) {
-        debugPrint('Deep link error: $err');
-      });
+      _linkSub = _appLinks.uriLinkStream.listen(
+        (Uri uri) => _handleIncomingUri(uri),
+        onError: (err) => debugPrint('Deep link error: $err'),
+      );
     } catch (e) {
       debugPrint('Deep link init error: $e');
     }
   }
 
   void _handleIncomingUri(Uri uri) {
-    debugPrint('Received deep link: $uri');
-    final path = uri.pathSegments;
-
-    if (path.isEmpty) return;
-
-    // Example: rimba://invite/group_id
-    if (path.first == 'invite' && path.length > 1) {
-      // For your demo, we just go to the home screen
-      router.go('/');
-    }
+    debugPrint('Deep link received: $uri');
+    
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        router.go('/');
+      }
+    });
   }
 
   @override

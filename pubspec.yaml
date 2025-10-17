@@ -86,6 +86,7 @@ dependencies:
   nfc_manager_ndef: ^1.0.1
   audio_in_app: ^2.1.1
   connectivity_plus: ^6.1.2
+  app_links: ^6.3.2
 
 dev_dependencies:
   flutter_test:
