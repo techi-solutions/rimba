@@ -5,6 +5,7 @@ import 'package:pay_app/models/group.dart';
 import 'package:pay_app/models/group_member.dart';
 import 'package:pay_app/state/groups/groups.dart';
 import 'package:pay_app/theme/colors.dart';
+import 'package:pay_app/utils/payment_calc.dart';
 
 /// Shows monthly progress, recipients, and payment status
 class GroupTimeline extends StatelessWidget {
@@ -19,7 +20,8 @@ class GroupTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<GroupsState>(
       builder: (context, groupsState, child) {
-        final members = groupsState.currentGroupMembers;
+        final members = [...groupsState.currentGroupMembers]
+          ..sort((a, b) => a.payoutPosition.compareTo(b.payoutPosition));
 
         // Show empty state if no members yet
         if (members.isEmpty) {
@@ -135,8 +137,9 @@ class GroupTimeline extends StatelessWidget {
   Map<String, dynamic> _createMonthData(
       int monthNumber, List<GroupMember> members, double monthlyAmount) {
     final recipient = members[(monthNumber - 1) % members.length];
-    final isCompleted = _isMonthCompleted(monthNumber);
-    final paidMembers = _getPaidMembersForMonth(monthNumber, members);
+    final isCompleted = _isMonthCompleted(monthNumber, members, monthlyAmount);
+    final paidMembers =
+        _getPaidMembersForMonth(monthNumber, members, monthlyAmount);
 
     return {
       'monthNumber': monthNumber,
@@ -149,24 +152,45 @@ class GroupTimeline extends StatelessWidget {
     };
   }
 
-  /// Checks if a month is completed
-  bool _isMonthCompleted(int monthNumber) {
-    return monthNumber <= 2;
+  bool _isMonthCompleted(
+      int monthNumber, List<GroupMember> members, double monthlyAmount) {
+    for (final member in members) {
+      final expectedContribution = _getExpectedContributionForMember(
+          member, monthlyAmount, members.length);
+      final actualContribution = double.parse(member.contributionAmount);
+
+      if (actualContribution < expectedContribution) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  double _getExpectedContributionForMember(
+      GroupMember member, double monthlyAmount, int totalMembers) {
+    return PaymentCalculator.calculateMonthlyContribution(
+      totalPoolAmount: monthlyAmount,
+      memberCount: totalMembers,
+      position: member.payoutPosition,
+    );
   }
 
   /// Gets members who have paid for a specific month
   List<GroupMember> _getPaidMembersForMonth(
-      int monthNumber, List<GroupMember> members) {
-    if (_isMonthCompleted(monthNumber)) {
-      return members; // All members have paid for completed months
+      int monthNumber, List<GroupMember> members, double monthlyAmount) {
+    final paidMembers = <GroupMember>[];
+
+    for (final member in members) {
+      final expectedContribution = _getExpectedContributionForMember(
+          member, monthlyAmount, members.length);
+      final actualContribution = double.parse(member.contributionAmount);
+
+      if (actualContribution >= expectedContribution) {
+        paidMembers.add(member);
+      }
     }
 
-    // For the month right after completed months, show some paid members
-    if (monthNumber == 3) {
-      return members.take(2).toList();
-    }
-
-    return []; // No payments for future months
+    return paidMembers;
   }
 
   /// Builds the timeline header with progress information

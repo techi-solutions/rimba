@@ -316,6 +316,7 @@ class GroupsState extends ChangeNotifier {
         final cachedMembers = await _groupMembersTable.getByGroupId(id);
         if (cachedMembers.isNotEmpty) {
           currentGroupMembers = cachedMembers;
+          await _ensureMemberPositions(id);
           debugPrint('Loaded ${cachedMembers.length} group members from cache');
           await _fetchMemberProfiles();
         }
@@ -340,15 +341,15 @@ class GroupsState extends ChangeNotifier {
         final apiMembers = await _groupsService.getGroupMembers(id);
         currentGroupMembers = apiMembers;
 
-        // Cache the members
-        await _cacheGroupMembers(id, apiMembers);
+        await _ensureMemberPositions(id);
+
+        await _cacheGroupMembers(id, currentGroupMembers);
 
         await _fetchMemberProfiles();
       } catch (e) {
         debugPrint('Failed to sync group from API, using cached data: $e');
-        // Continue with cached data - don't throw error
         if (selectedGroup == null) {
-          throw e; // Only throw if we have no cached data
+          throw e;
         }
       }
     } catch (e) {
@@ -358,6 +359,54 @@ class GroupsState extends ChangeNotifier {
       isLoading = false;
       safeNotifyListeners();
     }
+  }
+
+  Future<void> _ensureMemberPositions(String groupId) async {
+    if (currentGroupMembers.isEmpty) return;
+
+    final seen = <int>{};
+    bool needsNormalization = false;
+    for (final m in currentGroupMembers) {
+      if (m.payoutPosition < 0 ||
+          m.payoutPosition >= currentGroupMembers.length) {
+        needsNormalization = true;
+        break;
+      }
+      if (!seen.add(m.payoutPosition)) {
+        needsNormalization = true;
+        break;
+      }
+    }
+
+    if (needsNormalization) {
+      currentGroupMembers.sort((a, b) {
+        final cmp = a.createdAt.compareTo(b.createdAt);
+        if (cmp != 0) return cmp;
+        return a.contactAccount.compareTo(b.contactAccount);
+      });
+
+      for (int i = 0; i < currentGroupMembers.length; i++) {
+        final member = currentGroupMembers[i];
+        if (member.payoutPosition != i) {
+          currentGroupMembers[i] = member.copyWith(payoutPosition: i);
+          try {
+            await _groupMembersTable.updatePayoutPosition(
+              groupId,
+              member.contactAccount,
+              i,
+            );
+          } catch (e) {
+            debugPrint(
+                'Failed to persist payout_position for ${member.contactAccount}: $e');
+          }
+        }
+      }
+    } else {
+      currentGroupMembers
+          .sort((a, b) => a.payoutPosition.compareTo(b.payoutPosition));
+    }
+
+    safeNotifyListeners();
   }
 
   /// Cache group members to local database
@@ -463,13 +512,34 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
-      final newMember = await _groupsService.addGroupMember(
+      GroupMember? newMember = await _groupsService.addGroupMember(
         groupId: selectedGroup!.id,
         contactAccount: contactAccount,
       );
 
       if (newMember != null) {
-        currentGroupMembers.add(newMember);
+        try {
+          final nextPos =
+              await _groupMembersTable.getNextPayoutPosition(selectedGroup!.id);
+          final candidate = newMember;
+          if (candidate.payoutPosition < 0 ||
+              candidate.payoutPosition >= (currentGroupMembers.length + 1) ||
+              currentGroupMembers
+                  .any((m) => m.payoutPosition == candidate.payoutPosition)) {
+            newMember = newMember.copyWith(payoutPosition: nextPos);
+            await _groupMembersTable.updatePayoutPosition(
+              selectedGroup!.id,
+              newMember.contactAccount,
+              nextPos,
+            );
+          }
+        } catch (e) {
+          debugPrint('Failed to compute/assign next payout position: $e');
+        }
+
+        currentGroupMembers.add(newMember!);
+        currentGroupMembers
+            .sort((a, b) => a.payoutPosition.compareTo(b.payoutPosition));
 
         // Cache the new member
         await _groupMembersTable.addMember(newMember);
