@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -15,53 +16,54 @@ import 'package:pay_app/services/localization/localization_service.dart';
 import 'package:pay_app/state/app.dart';
 import 'package:pay_app/state/onboarding.dart';
 import 'package:pay_app/state/state.dart';
-import 'package:pay_app/state/wallet.dart';
 import 'package:pay_app/state/locale_state.dart';
+import 'package:pay_app/widgets/offline_banner.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:pay_app/l10n/app_localizations.dart';
+import 'package:app_links/app_links.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await dotenv.load(fileName: '.env');
-
   await init();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    if (kDebugMode) {
+      print('Firebase initialization skipped: $e');
+    }
+  }
 
-  // Pass all uncaught "fatal" errors from the framework to Crashlytics
+  // Crashlytics setup
   FlutterError.onError = (errorDetails) {
     FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
   };
-  // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
   PlatformDispatcher.instance.onError = (error, stack) {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };
 
-  // await MainDB().init('main');
+  // Initialize local services
   await AppDBService().openDB('main');
   await PreferencesService().init(await SharedPreferences.getInstance());
   await SecureService().init(await SharedPreferences.getInstance());
 
   final audioService = AudioService();
-
   final audioMuted = PreferencesService().audioMuted;
-
   await audioService.init(muted: audioMuted);
 
   final ConfigService configService = ConfigService();
-
   final config = await configService.getLocalConfig();
   if (config == null) {
     throw Exception('Community not found in local asset');
   }
-
   await config.initContracts();
 
   runApp(provideAppState(config, MyApp(config: config)));
@@ -70,15 +72,6 @@ void main() async {
 class MyApp extends StatefulWidget {
   final Config config;
   const MyApp({super.key, required this.config});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -92,13 +85,14 @@ class _MyAppState extends State<MyApp> {
   late GoRouter router;
 
   late OnboardingState _onboardingState;
+  late AppLinks _appLinks;
+  StreamSubscription? _linkSub;
 
   @override
   void initState() {
     super.initState();
 
     _onboardingState = context.read<OnboardingState>();
-
     final accountAddress = _onboardingState.getAccountAddress();
 
     router = createRouter(
@@ -109,6 +103,68 @@ class _MyAppState extends State<MyApp> {
       config: widget.config,
       accountAddress: accountAddress,
     );
+
+    _initDeepLinkHandling();
+  }
+
+  void _initDeepLinkHandling() async {
+    _appLinks = AppLinks();
+
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleIncomingUri(initialUri);
+      }
+
+      _linkSub = _appLinks.uriLinkStream.listen(
+        (Uri uri) => _handleIncomingUri(uri),
+        onError: (err) => debugPrint('Deep link error: $err'),
+      );
+    } catch (e) {
+      debugPrint('Deep link init error: $e');
+    }
+  }
+
+  void _handleIncomingUri(Uri uri) {
+    debugPrint('Deep link received: $uri');
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        final connectedAccountAddress =
+            _onboardingState.connectedAccountAddress;
+
+        if (connectedAccountAddress == null) {
+          router.go('/');
+          return;
+        }
+
+        final path = uri.path;
+        final queryParams = uri.queryParameters;
+
+        // Handle group join deeplinks
+        // Format: https://rimba.app/group/join?groupId=xxx&groupName=xxx
+        // Or: rimba://group/join?groupId=xxx&groupName=xxx
+        if (path.contains('/group/join') ||
+            path.contains('group') && queryParams.containsKey('groupId')) {
+          final groupId = queryParams['groupId'];
+          final groupName = queryParams['groupName'];
+
+          if (groupId != null && groupId.isNotEmpty) {
+            router.go(
+                '/group/join?groupId=$groupId${groupName != null ? '&groupName=${Uri.encodeComponent(groupName)}' : ''}');
+            return;
+          }
+        }
+
+        router.go('/home');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _linkSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -118,7 +174,7 @@ class _MyAppState extends State<MyApp> {
         primaryColor: state.tokenPrimaryColor,
         brightness: Brightness.light,
         scaffoldBackgroundColor: CupertinoColors.systemBackground,
-        textTheme: CupertinoTextThemeData(
+        textTheme: const CupertinoTextThemeData(
           textStyle: TextStyle(
             color: CupertinoColors.label,
             fontSize: 16,
@@ -146,6 +202,7 @@ class _MyAppState extends State<MyApp> {
           backgroundColor: theme.scaffoldBackgroundColor,
           child: Column(
             children: [
+              const OfflineBanner(),
               Expanded(
                 child: child != null
                     ? CupertinoTheme(

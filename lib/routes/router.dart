@@ -16,6 +16,7 @@ import 'package:pay_app/screens/onboarding/screen.dart';
 import 'package:pay_app/screens/account/edit/screen.dart';
 import 'package:pay_app/screens/groups/screen.dart';
 import 'package:pay_app/screens/group/detail_screen.dart';
+import 'package:pay_app/screens/group/join_screen.dart';
 
 // state
 import 'package:web3dart/web3dart.dart';
@@ -130,16 +131,33 @@ GoRouter createRouter(
                 return const GroupsScreen();
               },
             ),
+            GoRoute(
+              name: 'GroupDetail',
+              path: '/groups/:groupId',
+              builder: (context, state) {
+                final groupId = state.pathParameters['groupId']!;
+                return GroupDetailScreen(groupId: groupId);
+              },
+            ),
+            GoRoute(
+              name: 'GroupJoin',
+              path: '/group/join',
+              builder: (context, state) {
+                final groupId = state.uri.queryParameters['groupId'];
+                final groupName = state.uri.queryParameters['groupName'];
+                
+                if (groupId == null) {
+                  Future.microtask(() => context.go('/home'));
+                  return const SizedBox.shrink();
+                }
+                
+                return GroupJoinScreen(
+                  groupId: groupId,
+                  groupName: groupName,
+                );
+              },
+            ),
           ],
-        ),
-        GoRoute(
-          name: 'GroupDetail',
-          path: '/groups/:groupId',
-          parentNavigatorKey: rootNavigatorKey,
-          builder: (context, state) {
-            final groupId = state.pathParameters['groupId']!;
-            return GroupDetailScreen(groupId: groupId);
-          },
         ),
       ],
     );

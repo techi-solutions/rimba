@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:pay_app/state/groups/groups.dart';
-import 'package:pay_app/widgets/groups/groups_list.dart';
+import 'package:pay_app/screens/groups/components/groups_list.dart';
 import 'package:pay_app/screens/groups/group_detail_modal.dart';
 
 class GroupsScreen extends StatefulWidget {
@@ -65,9 +65,15 @@ class _GroupsScreenState extends State<GroupsScreen> {
   }
 
   void _showCreateGroupModal() {
+    final groupsState = context.read<GroupsState>();
+    
     showCupertinoModalPopup(
       context: context,
-      builder: (context) => const GroupDetailModal(),
+      useRootNavigator: true,
+      builder: (modalContext) => ChangeNotifierProvider.value(
+        value: groupsState,
+        child: const GroupDetailModal(),
+      ),
     );
   }
 }

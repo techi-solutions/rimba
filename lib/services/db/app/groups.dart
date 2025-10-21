@@ -16,6 +16,7 @@ class GroupsTable extends DBTable {
       description TEXT,
       amount TEXT NOT NULL,
       member_count INTEGER NOT NULL,
+      created_by TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
@@ -33,7 +34,9 @@ class GroupsTable extends DBTable {
 
   @override
   Future<void> migrate(Database db, int oldVersion, int newVersion) async {
-    // No migrations needed for version 1
+    if (oldVersion < 2 && newVersion >= 2) {
+      await db.execute('ALTER TABLE $name ADD COLUMN created_by TEXT');
+    }
   }
 
   // Fetch all groups ordered by latest updated_at

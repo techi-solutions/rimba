@@ -42,6 +42,14 @@ class ContactsState extends ChangeNotifier {
   ProfileV1? customContactProfile;
   ProfileV1? customContactProfileByUsername;
 
+  // DB Contacts for group member search
+  List<DBContact> dbContacts = [];
+  List<DBContact> filteredDbContacts = [];
+  bool isLoadingDbContacts = false;
+  bool isSearchingRemote = false;
+  DBContact? remoteSearchResult;
+  String dbContactsSearchQuery = '';
+
   Future? backgroundFetch;
 
   // state methods here
@@ -127,23 +135,42 @@ class ContactsState extends ChangeNotifier {
 
     if (!isPotentialNumber) {
       try {
-        final potentialUsername = query.trim().replaceFirst('@', '');
+        if (_isLikelyEthereumAddress(query)) {
+          final address = query.trim();
 
-        final contact = await _contacts.getByUsername(potentialUsername);
-        final cachedProfile = contact?.getProfile();
-        if (cachedProfile != null) {
-          customContactProfileByUsername = cachedProfile;
-          safeNotifyListeners();
+          final contact = await _contacts.getByAccount(address);
+          final cachedProfile = contact?.getProfile();
+          if (cachedProfile != null) {
+            customContactProfileByUsername = cachedProfile;
+            safeNotifyListeners();
+          }
+
+          backgroundFetch = getProfile(_config, address).then((result) async {
+            if (result != null) {
+              customContactProfileByUsername = result;
+              await _contacts.upsert(DBContact.fromProfile(result));
+              safeNotifyListeners();
+            }
+          });
+        } else {
+          final potentialUsername = query.trim().replaceFirst('@', '');
+
+          final contact = await _contacts.getByUsername(potentialUsername);
+          final cachedProfile = contact?.getProfile();
+          if (cachedProfile != null) {
+            customContactProfileByUsername = cachedProfile;
+            safeNotifyListeners();
+          }
+
+          final result = await getProfileByUsername(
+            _config,
+            potentialUsername,
+          );
+
+          print('result: $result');
+
+          customContactProfileByUsername = result;
         }
-
-        final result = await getProfileByUsername(
-          _config,
-          potentialUsername,
-        );
-
-        print('result: $result');
-
-        customContactProfileByUsername = result;
       } catch (e, s) {
         print('error: $e');
         print('stack trace: $s');
@@ -241,5 +268,145 @@ class ContactsState extends ChangeNotifier {
     }
 
     return null;
+  }
+
+  /// Fetch all DB contacts (for member selection modals)
+  Future<void> fetchDbContacts() async {
+    try {
+      isLoadingDbContacts = true;
+      safeNotifyListeners();
+
+      final contacts = await _contacts.getAll();
+      dbContacts = contacts;
+      filteredDbContacts = contacts;
+    } catch (e, s) {
+      debugPrint('Error fetching DB contacts: $e');
+      debugPrint('Stack trace: $s');
+    } finally {
+      isLoadingDbContacts = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Search DB contacts by query (name, username, or account)
+  void searchDbContacts(String query) async {
+    dbContactsSearchQuery = query.toLowerCase().trim();
+    remoteSearchResult = null;
+
+    if (dbContactsSearchQuery.isEmpty) {
+      filteredDbContacts = dbContacts;
+      safeNotifyListeners();
+      return;
+    }
+
+    try {
+      filteredDbContacts = await _contacts.search(dbContactsSearchQuery);
+    } catch (e, s) {
+      debugPrint('Error searching contacts: $e');
+      debugPrint('Stack trace: $s');
+      filteredDbContacts = dbContacts.where((contact) {
+        final accountMatch =
+            contact.account.toLowerCase().contains(dbContactsSearchQuery);
+        final usernameMatch =
+            contact.username.toLowerCase().contains(dbContactsSearchQuery);
+        final nameMatch =
+            contact.name.toLowerCase().contains(dbContactsSearchQuery);
+        return accountMatch || usernameMatch || nameMatch;
+      }).toList();
+    }
+
+    safeNotifyListeners();
+
+    if (filteredDbContacts.isEmpty) {
+      if (_isLikelyEthereumAddress(dbContactsSearchQuery)) {
+        searchRemoteAddress(dbContactsSearchQuery);
+      } else if (_isLikelyUsername(dbContactsSearchQuery)) {
+        searchRemoteUsername(dbContactsSearchQuery);
+      }
+    }
+  }
+
+  /// Check if query looks like a username (not an address)
+  bool _isLikelyUsername(String query) {
+    final trimmed = query.replaceFirst('@', '');
+    return trimmed.isNotEmpty &&
+        !trimmed.startsWith('0x') &&
+        trimmed.length < 42; // Ethereum addresses are 42 chars with 0x
+  }
+
+  /// Check if query looks like an Ethereum address
+  bool _isLikelyEthereumAddress(String query) {
+    final trimmed = query.trim();
+    return trimmed.startsWith('0x') &&
+        (trimmed.length == 42 || trimmed.length >= 10);
+  }
+
+  /// Search for a username on blockchain/IPFS
+  Future<void> searchRemoteUsername(String query) async {
+    try {
+      isSearchingRemote = true;
+      safeNotifyListeners();
+
+      final username = query.replaceFirst('@', '');
+      final profile = await getProfileByUsername(_config, username);
+
+      if (profile != null) {
+        final remoteContact = DBContact.fromProfile(profile);
+
+        // Cache it in local database
+        await _contacts.upsert(remoteContact);
+
+        remoteSearchResult = remoteContact;
+      }
+    } catch (e, s) {
+      debugPrint('Error searching remote username: $e');
+      debugPrint('Stack trace: $s');
+    } finally {
+      isSearchingRemote = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Search for an address on blockchain/IPFS
+  Future<void> searchRemoteAddress(String query) async {
+    try {
+      isSearchingRemote = true;
+      safeNotifyListeners();
+
+      final address = query.trim();
+
+      // Validate it's a valid Ethereum address format
+      if (!address.startsWith('0x') || address.length != 42) {
+        debugPrint('Invalid Ethereum address format: $address');
+        return;
+      }
+
+      // Try to get the profile from the blockchain
+      final profile = await getProfile(_config, address);
+
+      if (profile != null) {
+        final remoteContact = DBContact.fromProfile(profile);
+
+        // Cache it in local database
+        await _contacts.upsert(remoteContact);
+
+        remoteSearchResult = remoteContact;
+      }
+    } catch (e, s) {
+      debugPrint('Error searching remote address: $e');
+      debugPrint('Stack trace: $s');
+    } finally {
+      isSearchingRemote = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Clear DB contacts search
+  void clearDbContactsSearch() {
+    dbContactsSearchQuery = '';
+    filteredDbContacts = dbContacts;
+    remoteSearchResult = null;
+    isSearchingRemote = false;
+    safeNotifyListeners();
   }
 }
