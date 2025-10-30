@@ -4,6 +4,7 @@ class GroupMember {
   final String? memberName;
   final String contributionAmount;
   final int payoutPosition;
+  final bool isReady;
   final DateTime createdAt;
 
   GroupMember({
@@ -12,6 +13,7 @@ class GroupMember {
     this.memberName,
     required this.contributionAmount,
     required this.payoutPosition,
+    this.isReady = false,
     required this.createdAt,
   });
 
@@ -21,6 +23,7 @@ class GroupMember {
     String? memberName,
     String contributionAmount = '0.00',
     int payoutPosition = 0,
+    bool isReady = false,
   }) {
     return GroupMember(
       groupId: groupId,
@@ -28,6 +31,7 @@ class GroupMember {
       memberName: memberName,
       contributionAmount: contributionAmount,
       payoutPosition: payoutPosition,
+      isReady: isReady,
       createdAt: DateTime.now(),
     );
   }
@@ -43,6 +47,7 @@ class GroupMember {
           (map['contribution_amount'] ?? map['contributionAmount']) ?? '0.00',
       payoutPosition:
           (map['payout_position'] ?? map['payoutPosition'] ?? 0) as int,
+      isReady: (map['is_ready'] ?? map['isReady'] ?? false) as bool,
       createdAt:
           DateTime.parse((map['created_at'] ?? map['createdAt']) as String),
     );
@@ -55,6 +60,7 @@ class GroupMember {
       'member_name': memberName,
       'contribution_amount': contributionAmount,
       'payout_position': payoutPosition,
+      'is_ready': isReady,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -65,6 +71,7 @@ class GroupMember {
     String? memberName,
     String? contributionAmount,
     int? payoutPosition,
+    bool? isReady,
     DateTime? createdAt,
   }) {
     return GroupMember(
@@ -73,12 +80,13 @@ class GroupMember {
       memberName: memberName ?? this.memberName,
       contributionAmount: contributionAmount ?? this.contributionAmount,
       payoutPosition: payoutPosition ?? this.payoutPosition,
+      isReady: isReady ?? this.isReady,
       createdAt: createdAt ?? this.createdAt,
     );
   }
 
   @override
   String toString() {
-    return 'GroupMember(groupId: $groupId, contactAccount: $contactAccount, memberName: $memberName, contributionAmount: $contributionAmount, payoutPosition: $payoutPosition, createdAt: $createdAt)';
+    return 'GroupMember(groupId: $groupId, contactAccount: $contactAccount, memberName: $memberName, contributionAmount: $contributionAmount, payoutPosition: $payoutPosition, isReady: $isReady, createdAt: $createdAt)';
   }
 }

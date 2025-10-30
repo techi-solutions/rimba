@@ -618,6 +618,47 @@ class GroupsState extends ChangeNotifier {
     }
   }
 
+  /// Reorder group members by updating their payout positions
+  Future<bool> reorderGroupMembers(List<GroupMember> newOrder) async {
+    if (selectedGroup == null) return false;
+
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      // Update payout positions based on new order
+      for (int i = 0; i < newOrder.length; i++) {
+        final member = newOrder[i];
+        if (member.payoutPosition != i) {
+          // Update the member's payout position
+          final updatedMember = member.copyWith(payoutPosition: i);
+          newOrder[i] = updatedMember;
+          
+          // Update in database
+          await _groupMembersTable.updatePayoutPosition(
+            selectedGroup!.id,
+            member.contactAccount,
+            i,
+          );
+        }
+      }
+
+      // Update the current group members list
+      currentGroupMembers = List.from(newOrder);
+      currentGroupMembers.sort((a, b) => a.payoutPosition.compareTo(b.payoutPosition));
+
+      return true;
+    } catch (e) {
+      error = 'Failed to reorder group members: $e';
+      debugPrint('Error reordering group members: $e');
+      return false;
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
   void searchGroups(String query) {
     searchQuery = query;
     safeNotifyListeners();
@@ -659,6 +700,103 @@ class GroupsState extends ChangeNotifier {
     return currentGroupMembers
         .where((member) => member.groupId == groupId)
         .length;
+  }
+
+  /// Mark a member as ready for payment
+  Future<bool> markMemberReady(String groupId, String contactAccount) async {
+    if (selectedGroup == null || selectedGroup!.id != groupId) return false;
+
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      // Update local state
+      final memberIndex = currentGroupMembers.indexWhere(
+        (member) => member.contactAccount == contactAccount,
+      );
+
+      if (memberIndex != -1) {
+        currentGroupMembers[memberIndex] = currentGroupMembers[memberIndex]
+            .copyWith(isReady: true);
+      }
+
+      safeNotifyListeners();
+      return true;
+    } catch (e) {
+      error = 'Failed to mark member as ready: $e';
+      debugPrint('Error marking member ready: $e');
+      return false;
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Check if all members are ready
+  bool areAllMembersReady() {
+    if (currentGroupMembers.isEmpty) return false;
+    return currentGroupMembers.every((member) => member.isReady);
+  }
+
+  /// Get ready status for current user
+  bool isCurrentUserReady() {
+    final userAccount = _userAccountAddress;
+    if (userAccount == null) return false;
+
+    final userMember = currentGroupMembers.firstWhere(
+      (member) => member.contactAccount == userAccount,
+      orElse: () => GroupMember.create(
+        groupId: '',
+        contactAccount: '',
+        isReady: false,
+      ),
+    );
+
+    return userMember.isReady;
+  }
+
+  /// Get ready count
+  int getReadyCount() {
+    return currentGroupMembers.where((member) => member.isReady).length;
+  }
+
+  /// Start the payment flow - send first payout to the first person
+  Future<bool> startPaymentFlow() async {
+    if (selectedGroup == null || !areAllMembersReady()) return false;
+
+    try {
+      isLoading = true;
+      error = null;
+      safeNotifyListeners();
+
+      final firstPerson = currentGroupMembers.firstWhere(
+        (member) => member.payoutPosition == 0,
+        orElse: () => throw Exception('No first person found'),
+      );
+
+      final totalAmount = double.parse(selectedGroup!.amount);
+      
+      // TODO: Implement actual payment logic
+      // This would involve:
+      // 1. Creating user operations for all members to contribute
+      // 2. Sending the payout to the first person
+      // 3. Updating group state to reflect payment cycle has started
+      
+      await Future.delayed(const Duration(seconds: 2));
+
+      debugPrint('Payment flow started - ${firstPerson.memberName} should receive \$${totalAmount.toStringAsFixed(2)}');
+
+      safeNotifyListeners();
+      return true;
+    } catch (e) {
+      error = 'Failed to start payment flow: $e';
+      debugPrint('Error starting payment flow: $e');
+      return false;
+    } finally {
+      isLoading = false;
+      safeNotifyListeners();
+    }
   }
 
   Future<void> fetchUserGroups([String? userAddress]) async {

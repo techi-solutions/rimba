@@ -1,6 +1,7 @@
 import 'package:pay_app/models/group_member.dart';
 import 'package:pay_app/services/db/db.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:flutter/foundation.dart';
 
 class GroupMembersTable extends DBTable {
   GroupMembersTable(super.db);
@@ -66,6 +67,16 @@ class GroupMembersTable extends DBTable {
         // Column already exists, ignore error
       }
     }
+
+    if (oldVersion < 5 && newVersion >= 5) {
+      // Add is_ready column if it doesn't exist
+      try {
+        await db.execute(
+            'ALTER TABLE $name ADD COLUMN is_ready INTEGER NOT NULL DEFAULT 0');
+      } catch (e) {
+        // Column already exists, ignore error
+      }
+    }
   }
 
   // Fetch all members of a group
@@ -102,11 +113,41 @@ class GroupMembersTable extends DBTable {
 
   // Add member to group
   Future<void> addMember(GroupMember member) async {
+    // First ensure the contact exists in t_contacts
+    await _ensureContactExists(member.contactAccount, member.memberName);
+    
     await db.insert(
       name,
       member.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  // Ensure contact exists in t_contacts table
+  Future<void> _ensureContactExists(String contactAccount, String? memberName) async {
+    // Check if contact already exists
+    final existingContact = await db.query(
+      't_contacts',
+      where: 'account = ?',
+      whereArgs: [contactAccount],
+    );
+
+    if (existingContact.isEmpty) {
+      // Create a basic contact entry
+      await db.insert(
+        't_contacts',
+        {
+          'account': contactAccount,
+          'username': memberName ?? 'Unknown User',
+          'name': memberName ?? 'Unknown User',
+          'type': 'user',
+          'profile': null,
+          'place': null,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      debugPrint('DB: Created contact entry for $contactAccount');
+    }
   }
 
   // Remove member from group
@@ -162,5 +203,26 @@ class GroupMembersTable extends DBTable {
       where: 'group_id = ? AND contact_account = ?',
       whereArgs: [groupId, contactAccount],
     );
+  }
+
+  // Batch update payout positions within a single transaction
+  Future<void> updatePayoutPositionsBatch(
+    String groupId,
+    List<GroupMember> orderedMembers,
+  ) async {
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (int i = 0; i < orderedMembers.length; i++) {
+        final member = orderedMembers[i];
+        batch.update(
+          name,
+          {'payout_position': i},
+          where: 'group_id = ? AND contact_account = ?',
+          whereArgs: [groupId, member.contactAccount],
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+    debugPrint('DB: Batch updated ${orderedMembers.length} payout positions for group $groupId');
   }
 }
