@@ -3,12 +3,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:pay_app/models/group.dart';
 import 'package:pay_app/models/group_member.dart';
 import 'package:pay_app/models/group_request.dart';
+import 'package:pay_app/models/payment.dart';
 import 'package:pay_app/services/groups/groups.dart';
 import 'package:pay_app/services/groups/group_members.dart';
 import 'package:pay_app/services/db/app/db.dart';
 import 'package:pay_app/services/db/app/contacts.dart';
 import 'package:pay_app/services/db/app/groups.dart';
 import 'package:pay_app/services/db/app/group_members.dart';
+import 'package:pay_app/services/pay/payments.dart';
 import 'package:pay_app/services/preferences/preferences.dart';
 import 'package:pay_app/services/secure/secure.dart';
 import 'package:pay_app/services/config/config.dart';
@@ -19,6 +21,7 @@ class GroupsState extends ChangeNotifier {
   late GroupsService _groupsService;
   late GroupsTable _groupsTable;
   final GroupMembersService _groupMembersService = GroupMembersService();
+  final PaymentsService _paymentsService = PaymentsService();
   final ContactsTable _contacts = AppDBService().contacts;
   final GroupMembersTable _groupMembersTable = AppDBService().groupMembers;
   final PreferencesService _preferences = PreferencesService();
@@ -813,7 +816,9 @@ class GroupsState extends ChangeNotifier {
   }
 
   /// Start the payment flow - send first payout to the first person
-  Future<bool> startPaymentFlow() async {
+  Future<bool> startPaymentFlow({
+    required List<Map<String, dynamic>> userOps,
+  }) async {
     if (selectedGroup == null || !areAllMembersReady()) return false;
 
     try {
@@ -821,18 +826,59 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
-      final firstPerson = currentGroupMembers.firstWhere(
+      final userAccount = _userAccountAddress;
+
+      if (userAccount == null) {
+        throw Exception('User account not found');
+      }
+
+      // Verify first person exists
+      final hasFirstPerson = currentGroupMembers.any(
         (member) => member.payoutPosition == 0,
-        orElse: () => throw Exception('No first person found'),
+      );
+      if (!hasFirstPerson) {
+        throw Exception('No first person found in group');
+      }
+
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month, 1);
+      final endDate = DateTime(now.year, now.month + 1, 0);
+
+      final paymentUserOps = <PaymentUserOp>[];
+
+      for (int i = 0; i < currentGroupMembers.length; i++) {
+        final member = currentGroupMembers[i];
+
+        final memberUserOp = userOps.firstWhere(
+          (op) => op['memberAccount'] == member.contactAccount,
+          orElse: () => throw Exception(
+              'UserOp not found for member: ${member.contactAccount}'),
+        );
+
+        paymentUserOps.add(
+          PaymentUserOp(
+            userOp: memberUserOp['userOp'],
+            startDate: startDate.toIso8601String(),
+            endDate: endDate.toIso8601String(),
+            executionMonth: 1,
+            status: 'pending',
+          ),
+        );
+      }
+
+      debugPrint(
+          'Sending ${paymentUserOps.length} user operations to payments API');
+
+      final response = await _paymentsService.createPayments(
+        groupId: selectedGroup!.id,
+        userId: userAccount,
+        userOps: paymentUserOps,
       );
 
-      final totalAmount = double.parse(selectedGroup!.amount);
-
-      // TODO: Implement actual payment logic
-      // This would involve:
-      // 1. Creating user operations for all members to contribute
-      // 2. Sending the payout to the first person
-      // 3. Updating group state to reflect payment cycle has started
+      if (!response.success) {
+        throw Exception(
+            response.error ?? response.message ?? 'Payment creation failed');
+      }
 
       await Future.delayed(const Duration(seconds: 2));
 
