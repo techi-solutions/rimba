@@ -55,8 +55,8 @@
   "community": {
     "url": "https://en.gratiago.com/",
     "logo": "https://etvujlqieidfoqsetrqd.supabase.co/storage/v1/object/public/uploads/grace/1753785800970-Gratiago%20-%20Grace.svg",
-    "name": "Grace",
-    "alias": "grace",
+    "name": "Rimba",
+    "alias": "rimba-test",
     "theme": {
       "primary": "#f46197"
     },
@@ -83,5 +83,5 @@
       "chain_id": 100
     }
   },
-  "config_location": "https://my.citizenwallet.xyz/api/communities/grace"
+  "config_location": "https://my.citizenwallet.xyz/api/communities/rimba-test"
 }

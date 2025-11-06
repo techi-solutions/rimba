@@ -39,6 +39,9 @@ class GroupMember {
   factory GroupMember.fromMap(Map<String, dynamic> map) {
     final user = map['user'] as Map<String, dynamic>?;
 
+    final isReadyValue = map['is_ready'] ?? map['isReady'] ?? false;
+    final isReady = isReadyValue is bool ? isReadyValue : (isReadyValue == 1);
+
     return GroupMember(
       groupId: (map['group_id'] ?? map['groupId']) as String,
       contactAccount: map['userAddress'] as String,
@@ -47,7 +50,7 @@ class GroupMember {
           (map['contribution_amount'] ?? map['contributionAmount']) ?? '0.00',
       payoutPosition:
           (map['payout_position'] ?? map['payoutPosition'] ?? 0) as int,
-      isReady: (map['is_ready'] ?? map['isReady'] ?? false) as bool,
+      isReady: isReady,
       createdAt:
           DateTime.parse((map['created_at'] ?? map['createdAt']) as String),
     );
@@ -60,7 +63,7 @@ class GroupMember {
       'member_name': memberName,
       'contribution_amount': contributionAmount,
       'payout_position': payoutPosition,
-      'is_ready': isReady,
+      'is_ready': isReady ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
     };
   }

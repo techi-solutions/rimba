@@ -709,6 +709,8 @@ class _GroupMembersState extends State<GroupMembers> {
                 _buildStartPaymentButton(),
               ] else if (!isCurrentUserReady) ...[
                 _buildReadyButton(),
+              ] else ...[
+                _buildUnmarkReadyButton(),
               ],
             ],
           ),
@@ -739,6 +741,38 @@ class _GroupMembersState extends State<GroupMembers> {
                   style: TextStyle(
                     fontSize: screenWidth * 0.035,
                     fontWeight: FontWeight.w600,
+                  ),
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUnmarkReadyButton() {
+    return Consumer<GroupsState>(
+      builder: (context, groupsState, child) {
+        final isLoading = groupsState.isLoading;
+        final userAccount = groupsState.userAccountAddress;
+        final screenWidth = MediaQuery.of(context).size.width;
+
+        return CupertinoButton(
+          padding: EdgeInsets.symmetric(
+            horizontal: screenWidth * 0.04,
+            vertical: screenWidth * 0.02,
+          ),
+          color: CupertinoColors.systemGrey5,
+          onPressed: isLoading ? null : () => _unmarkAsReady(userAccount!),
+          child: isLoading
+              ? CupertinoActivityIndicator(
+                  radius: screenWidth * 0.03,
+                  color: primaryColor,
+                )
+              : Text(
+                  'Unmark Ready',
+                  style: TextStyle(
+                    fontSize: screenWidth * 0.035,
+                    fontWeight: FontWeight.w600,
+                    color: primaryColor,
                   ),
                 ),
         );
@@ -875,12 +909,6 @@ class _GroupMembersState extends State<GroupMembers> {
     // Insert it at the new position
     newOrder.insert(newIndex, item);
 
-    // Update the payout positions based on the new order
-    for (int i = 0; i < newOrder.length; i++) {
-      newOrder[i] = newOrder[i].copyWith(payoutPosition: i);
-    }
-
-    // Call the reorder method
     final success = await groupsState.reorderGroupMembers(newOrder);
 
     if (mounted && !success) {
@@ -930,6 +958,57 @@ class _GroupMembersState extends State<GroupMembers> {
           builder: (context) => CupertinoAlertDialog(
             title: const Text('Error'),
             content: const Text('Failed to mark as ready. Please try again.'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('OK'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  void _unmarkAsReady(String userAccount) async {
+    HapticFeedback.lightImpact();
+
+    final groupsState = context.read<GroupsState>();
+    bool success = false;
+
+    try {
+      await groupsState.updateMemberReadyStatus(
+        groupId: widget.group.id,
+        userAddress: userAccount,
+        isReady: false,
+      );
+      success = true;
+    } catch (e) {
+      debugPrint('Error unmarking as ready: $e');
+      success = false;
+    }
+
+    if (mounted) {
+      if (success) {
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Unmarked'),
+            content: const Text('You have unmarked yourself as ready.'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('OK'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        );
+      } else {
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Error'),
+            content: const Text('Failed to unmark as ready. Please try again.'),
             actions: [
               CupertinoDialogAction(
                 child: const Text('OK'),

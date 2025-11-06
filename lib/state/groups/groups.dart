@@ -4,6 +4,7 @@ import 'package:pay_app/models/group.dart';
 import 'package:pay_app/models/group_member.dart';
 import 'package:pay_app/models/group_request.dart';
 import 'package:pay_app/services/groups/groups.dart';
+import 'package:pay_app/services/groups/group_members.dart';
 import 'package:pay_app/services/db/app/db.dart';
 import 'package:pay_app/services/db/app/contacts.dart';
 import 'package:pay_app/services/db/app/groups.dart';
@@ -17,6 +18,7 @@ class GroupsState extends ChangeNotifier {
   // Services
   late GroupsService _groupsService;
   late GroupsTable _groupsTable;
+  final GroupMembersService _groupMembersService = GroupMembersService();
   final ContactsTable _contacts = AppDBService().contacts;
   final GroupMembersTable _groupMembersTable = AppDBService().groupMembers;
   final PreferencesService _preferences = PreferencesService();
@@ -339,7 +341,9 @@ class GroupsState extends ChangeNotifier {
         }
 
         final apiMembers = await _groupsService.getGroupMembers(id);
-        currentGroupMembers = apiMembers;
+
+        currentGroupMembers =
+            await _mergeApiMembersWithLocalPositions(id, apiMembers);
 
         await _ensureMemberPositions(id);
 
@@ -407,6 +411,37 @@ class GroupsState extends ChangeNotifier {
     }
 
     safeNotifyListeners();
+  }
+
+  Future<List<GroupMember>> _mergeApiMembersWithLocalPositions(
+      String groupId, List<GroupMember> apiMembers) async {
+    try {
+      final localMembers = await _groupMembersTable.getByGroupId(groupId);
+
+      if (localMembers.isEmpty) {
+        return apiMembers;
+      }
+
+      final localPositions = <String, int>{};
+      for (final localMember in localMembers) {
+        localPositions[localMember.contactAccount] = localMember.payoutPosition;
+      }
+
+      final mergedMembers = <GroupMember>[];
+      for (final apiMember in apiMembers) {
+        final localPosition = localPositions[apiMember.contactAccount];
+        if (localPosition != null) {
+          mergedMembers.add(apiMember.copyWith(payoutPosition: localPosition));
+        } else {
+          mergedMembers.add(apiMember);
+        }
+      }
+
+      return mergedMembers;
+    } catch (e) {
+      debugPrint('Error merging API members with local positions: $e');
+      return apiMembers;
+    }
   }
 
   /// Cache group members to local database
@@ -628,14 +663,17 @@ class GroupsState extends ChangeNotifier {
       safeNotifyListeners();
 
       // Update payout positions based on new order
+      final membersToSync = <GroupMember>[];
       for (int i = 0; i < newOrder.length; i++) {
         final member = newOrder[i];
+
         if (member.payoutPosition != i) {
           // Update the member's payout position
           final updatedMember = member.copyWith(payoutPosition: i);
           newOrder[i] = updatedMember;
-          
-          // Update in database
+          membersToSync.add(updatedMember);
+
+          // Update in local database
           await _groupMembersTable.updatePayoutPosition(
             selectedGroup!.id,
             member.contactAccount,
@@ -646,7 +684,24 @@ class GroupsState extends ChangeNotifier {
 
       // Update the current group members list
       currentGroupMembers = List.from(newOrder);
-      currentGroupMembers.sort((a, b) => a.payoutPosition.compareTo(b.payoutPosition));
+      currentGroupMembers
+          .sort((a, b) => a.payoutPosition.compareTo(b.payoutPosition));
+
+      if (membersToSync.isNotEmpty) {
+        for (final member in membersToSync) {
+          _groupMembersService
+              .updatePayoutPosition(
+            groupId: selectedGroup!.id,
+            userAddress: member.contactAccount,
+            payoutPosition: member.payoutPosition,
+          )
+              .catchError((e) {
+            debugPrint(
+                'Failed to sync payout position for ${member.contactAccount}: $e');
+            return false;
+          });
+        }
+      }
 
       return true;
     } catch (e) {
@@ -711,17 +766,13 @@ class GroupsState extends ChangeNotifier {
       error = null;
       safeNotifyListeners();
 
-      // Update local state
-      final memberIndex = currentGroupMembers.indexWhere(
-        (member) => member.contactAccount == contactAccount,
+      // Update via API and local database
+      await updateMemberReadyStatus(
+        groupId: groupId,
+        userAddress: contactAccount,
+        isReady: true,
       );
 
-      if (memberIndex != -1) {
-        currentGroupMembers[memberIndex] = currentGroupMembers[memberIndex]
-            .copyWith(isReady: true);
-      }
-
-      safeNotifyListeners();
       return true;
     } catch (e) {
       error = 'Failed to mark member as ready: $e';
@@ -776,16 +827,14 @@ class GroupsState extends ChangeNotifier {
       );
 
       final totalAmount = double.parse(selectedGroup!.amount);
-      
+
       // TODO: Implement actual payment logic
       // This would involve:
       // 1. Creating user operations for all members to contribute
       // 2. Sending the payout to the first person
       // 3. Updating group state to reflect payment cycle has started
-      
-      await Future.delayed(const Duration(seconds: 2));
 
-      debugPrint('Payment flow started - ${firstPerson.memberName} should receive \$${totalAmount.toStringAsFixed(2)}');
+      await Future.delayed(const Duration(seconds: 2));
 
       safeNotifyListeners();
       return true;
@@ -1163,5 +1212,51 @@ class GroupsState extends ChangeNotifier {
     groups = [];
     safeNotifyListeners();
     await fetchGroups();
+  }
+
+  /// Update member ready status
+  Future<void> updateMemberReadyStatus({
+    required String groupId,
+    required String userAddress,
+    required bool isReady,
+  }) async {
+    try {
+      // Update on backend
+      final success = await _groupMembersService.updateReadyStatus(
+        groupId: groupId,
+        userAddress: userAddress,
+        isReady: isReady,
+      );
+
+      if (!success) {
+        throw Exception('Failed to update ready status');
+      }
+
+      // Update local database
+      await _groupMembersTable.updateReadyStatus(
+        groupId,
+        userAddress,
+        isReady,
+      );
+
+      // Update in-memory state if this is the current group
+      if (selectedGroup?.id == groupId) {
+        final memberIndex = currentGroupMembers.indexWhere(
+          (m) => m.contactAccount == userAddress,
+        );
+
+        if (memberIndex != -1) {
+          currentGroupMembers[memberIndex] =
+              currentGroupMembers[memberIndex].copyWith(
+            isReady: isReady,
+          );
+          safeNotifyListeners();
+        }
+      }
+    } catch (e, s) {
+      debugPrint('Failed to update ready status: $e');
+      debugPrint('Stack trace: $s');
+      rethrow;
+    }
   }
 }

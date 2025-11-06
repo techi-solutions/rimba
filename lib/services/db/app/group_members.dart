@@ -17,6 +17,7 @@ class GroupMembersTable extends DBTable {
       member_name TEXT,
       contribution_amount TEXT NOT NULL DEFAULT '0.00',
       payout_position INTEGER NOT NULL DEFAULT 0,
+      is_ready INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       PRIMARY KEY (group_id, contact_account),
       FOREIGN KEY (group_id) REFERENCES t_groups(id) ON DELETE CASCADE,
@@ -115,7 +116,7 @@ class GroupMembersTable extends DBTable {
   Future<void> addMember(GroupMember member) async {
     // First ensure the contact exists in t_contacts
     await _ensureContactExists(member.contactAccount, member.memberName);
-    
+
     await db.insert(
       name,
       member.toMap(),
@@ -124,7 +125,8 @@ class GroupMembersTable extends DBTable {
   }
 
   // Ensure contact exists in t_contacts table
-  Future<void> _ensureContactExists(String contactAccount, String? memberName) async {
+  Future<void> _ensureContactExists(
+      String contactAccount, String? memberName) async {
     // Check if contact already exists
     final existingContact = await db.query(
       't_contacts',
@@ -223,6 +225,23 @@ class GroupMembersTable extends DBTable {
       }
       await batch.commit(noResult: true);
     });
-    debugPrint('DB: Batch updated ${orderedMembers.length} payout positions for group $groupId');
+    debugPrint(
+        'DB: Batch updated ${orderedMembers.length} payout positions for group $groupId');
+  }
+
+  // Update the isReady status of a member
+  Future<void> updateReadyStatus(
+    String groupId,
+    String contactAccount,
+    bool isReady,
+  ) async {
+    await db.update(
+      name,
+      {'is_ready': isReady ? 1 : 0},
+      where: 'group_id = ? AND contact_account = ?',
+      whereArgs: [groupId, contactAccount],
+    );
+    debugPrint(
+        'DB: Updated isReady status for $contactAccount in group $groupId to $isReady');
   }
 }

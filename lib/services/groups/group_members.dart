@@ -44,4 +44,52 @@ class GroupMembersService {
       rethrow;
     }
   }
+
+  /// PATCH /api/v1/groups/{groupId}/users - Update ready status for a member
+  Future<bool> updateReadyStatus({
+    required String groupId,
+    required String userAddress,
+    required bool isReady,
+  }) async {
+    try {
+      final response = await apiService.patch(
+        url: '/groups/$groupId/users',
+        body: {
+          'userAddress': userAddress,
+          'isReady': isReady,
+        },
+      );
+
+      final Map<String, dynamic> data = response;
+      return data['success'] == true;
+    } catch (e, s) {
+      debugPrint('Failed to update ready status: $e');
+      debugPrint('Stack trace: $s');
+      rethrow;
+    }
+  }
+
+  /// PATCH /api/v1/groups/{groupId}/users - Update payout position for a member
+  Future<bool> updatePayoutPosition({
+    required String groupId,
+    required String userAddress,
+    required int payoutPosition,
+  }) async {
+    try {
+      final response = await apiService.patch(
+        url: '/groups/$groupId/users',
+        body: {
+          'userAddress': userAddress,
+          'payout_position': payoutPosition,
+        },
+      );
+
+      final Map<String, dynamic> data = response;
+      return data['success'] == true;
+    } catch (e, s) {
+      debugPrint('Failed to update payout position: $e');
+      debugPrint('Stack trace: $s');
+      rethrow;
+    }
+  }
 }
