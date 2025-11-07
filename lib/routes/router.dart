@@ -17,6 +17,7 @@ import 'package:pay_app/screens/account/edit/screen.dart';
 import 'package:pay_app/screens/groups/screen.dart';
 import 'package:pay_app/screens/group/detail_screen.dart';
 import 'package:pay_app/screens/group/join_screen.dart';
+import 'package:pay_app/screens/wallet/monerium_connect_page.dart';
 
 // state
 import 'package:web3dart/web3dart.dart';
@@ -137,6 +138,13 @@ GoRouter createRouter(
               builder: (context, state) {
                 final groupId = state.pathParameters['groupId']!;
                 return GroupDetailScreen(groupId: groupId);
+              },
+            ),
+            GoRoute(
+              name: 'MoneriumConnect',
+              path: '/monerium/connect',
+              builder: (context, state) {
+                return const MoneriumConnectPage();
               },
             ),
             GoRoute(

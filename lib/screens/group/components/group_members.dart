@@ -1048,7 +1048,7 @@ class _GroupMembersState extends State<GroupMembers> {
     if (confirmed != true) return;
 
     final groupsState = context.read<GroupsState>();
-    final success = await groupsState.startPaymentFlow();
+    final success = await groupsState.startPaymentFlow(userOps: []);
 
     if (mounted) {
       if (success) {
