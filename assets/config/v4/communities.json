@@ -11,7 +11,7 @@
       "type": "safe",
       "address": "0xBA861e2DABd8316cf11Ae7CdA101d110CF581f28",
       "chain_id": 100,
-      "instance_id": "discord-1"
+      "instance_id": "cw-discord-1"
     }
   },
   "chains": {
@@ -24,22 +24,22 @@
     }
   },
   "tokens": {
-    "100:0x73A6aa265E999E74bC1EDB14f3c330aD3f029761": {
-      "name": "Rimba",
-      "symbol": "RIMBA",
-      "address": "0x73A6aa265E999E74bC1EDB14f3c330aD3f029761",
+    "100:0x420CA0f9B9b604cE0fd9C18EF134C705e5Fa3430": {
+      "name": "EURe [Gnosis]",
+      "symbol": "EURe",
+      "address": "0x420CA0f9B9b604cE0fd9C18EF134C705e5Fa3430",
       "chain_id": 100,
-      "decimals": 6,
+      "decimals": 18,
       "standard": "erc20"
     }
   },
   "plugins": [],
-  "version": 4,
+  "version": 5,
   "accounts": {
     "100:0x7cC54D54bBFc65d1f0af7ACee5e4042654AF8185": {
       "chain_id": 100,
       "paymaster_type": "cw-safe",
-      "paymaster_address": "0xBa1703FF5C9640475710732adf78567Fc4F8341b",
+      "paymaster_address": "0xeBDd6ee8DB7055f62D14A5eAAB7c18ae36Cd2216",
       "entrypoint_address": "0x7079253c0358eF9Fd87E16488299Ef6e06F403B6",
       "account_factory_address": "0x7cC54D54bBFc65d1f0af7ACee5e4042654AF8185"
     }
@@ -53,21 +53,22 @@
     }
   },
   "community": {
-    "url": "https://en.gratiago.com/",
-    "logo": "https://etvujlqieidfoqsetrqd.supabase.co/storage/v1/object/public/uploads/grace/1753785800970-Gratiago%20-%20Grace.svg",
-    "name": "Rimba",
-    "alias": "rimba-test",
+    "url": "https://monerium.com/",
+    "logo": "https://eure.gnosis.citizenwallet.xyz/wallet-config/_images/eure.svg",
+    "name": "Monerium EURe on Gnosis",
+    "alias": "eure.gnosis",
     "theme": {
-      "primary": "#f46197"
+      "primary": "#4a90e2"
     },
-    "hidden": true,
+    "hidden": false,
     "profile": {
-      "address": "0x898C2737f2Cb52622711A89D85A1D5E0B881BDeA",
+      "address": "0x2e297B9ef4df73c8da5070E91EF0570FA312A698",
       "chain_id": 100
     },
-    "description": "The Rimba Test Community",
+    "description": "A community for EURe on Gnosis",
+    "custom_domain": "eure.gnosis.citizenwallet.xyz",
     "primary_token": {
-      "address": "0x73A6aa265E999E74bC1EDB14f3c330aD3f029761",
+      "address": "0x420CA0f9B9b604cE0fd9C18EF134C705e5Fa3430",
       "chain_id": 100
     },
     "primary_card_manager": {
@@ -83,5 +84,5 @@
       "chain_id": 100
     }
   },
-  "config_location": "https://my.citizenwallet.xyz/api/communities/rimba-test"
+  "config_location": "https://my.citizenwallet.xyz/api/communities/eure.gnosis"
 }
