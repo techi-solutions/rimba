@@ -10,6 +10,7 @@ import 'package:pay_app/widgets/blurry_child.dart';
 import 'package:pay_app/widgets/cards/card.dart' as cardWidget;
 import 'package:pay_app/widgets/cards/card_skeleton.dart';
 import 'package:pay_app/widgets/coin_logo.dart';
+import 'package:pay_app/screens/wallet/monerium_connect_page.dart';
 import 'package:provider/provider.dart';
 
 class ProfileBar extends StatefulWidget {
@@ -60,6 +61,11 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
     HapticFeedback.heavyImpact();
 
     navigator.push('/my-account/settings');
+  }
+
+  void handleMoneriumConnect() {
+    HapticFeedback.mediumImpact();
+    showMoneriumConnectModal(context);
   }
 
   @override
@@ -147,8 +153,8 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
                       profile: appProfile,
                       usernamePrefix: '@',
                       icon: CupertinoIcons.device_phone_portrait,
-                      onTopUpPressed: !widget.loading && topUpPlugin != null
-                          ? () => widget.onTopUpTap(topUpPlugin.url)
+                      onTopUpPressed: !widget.loading
+                          ? handleMoneriumConnect
                           : null,
                       onCardNameTapped: handleEditProfile,
                       onCardPressed: null,

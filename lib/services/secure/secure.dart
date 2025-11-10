@@ -1,4 +1,3 @@
-// TODO: implement this with biometrics instead
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
@@ -50,18 +49,24 @@ class SecureService {
   // Get private key without needing arguments
   (EthereumAddress, EthPrivateKey)? getCredentials() {
     final storedValue = _preferences.getString(_privateKeyKey);
-    if (storedValue == null) return null;
+    if (storedValue == null) {
+      return null;
+    }
 
     try {
       final parts = storedValue.split(':');
-      if (parts.length != 2) return null;
+      if (parts.length != 2) {
+        return null;
+      }
 
+      final accountAddress = parts[0];
       final privateKeyHex = parts[1];
+      final privateKey = EthPrivateKey.fromHex(privateKeyHex);
       return (
-        EthereumAddress.fromHex(parts[0]),
-        EthPrivateKey.fromHex(privateKeyHex),
+        EthereumAddress.fromHex(accountAddress),
+        privateKey,
       );
-    } catch (_) {
+    } catch (e) {
       return null;
     }
   }
