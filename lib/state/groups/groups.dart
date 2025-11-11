@@ -15,6 +15,8 @@ import 'package:pay_app/services/preferences/preferences.dart';
 import 'package:pay_app/services/secure/secure.dart';
 import 'package:pay_app/services/config/config.dart';
 import 'package:pay_app/services/wallet/wallet.dart';
+import 'package:pay_app/services/wallet/utils.dart';
+import 'package:web3dart/web3dart.dart';
 
 class GroupsState extends ChangeNotifier {
   // Services
@@ -36,6 +38,7 @@ class GroupsState extends ChangeNotifier {
   String searchQuery = '';
   bool isLoading = false;
   String? error;
+  bool paymentFlowStarted = false;
 
   // Private variables
   bool _mounted = true;
@@ -278,7 +281,6 @@ class GroupsState extends ChangeNotifier {
     }
   }
 
-  /// Sync a single group from API in background
   Future<void> _syncGroupFromAPI(String id) async {
     try {
       final group = await _groupsService.getGroupById(id);
@@ -304,11 +306,39 @@ class GroupsState extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshSelectedGroupSilently(String id) async {
+    try {
+      final group = await _groupsService.getGroupById(id);
+      if (group != null) {
+        selectedGroup = group;
+        await _groupsTable.upsert(group);
+
+        // Update in groups list
+        final index = groups.indexWhere((g) => g.id == id);
+        if (index != -1) {
+          groups[index] = group;
+        }
+      }
+
+      final apiMembers = await _groupsService.getGroupMembers(id);
+      currentGroupMembers =
+          await _mergeApiMembersWithLocalPositions(id, apiMembers);
+      await _ensureMemberPositions(id);
+      await _cacheGroupMembers(id, currentGroupMembers);
+      await _fetchMemberProfiles();
+
+      safeNotifyListeners();
+    } catch (e) {
+      debugPrint('Silent refresh failed for group $id: $e');
+    }
+  }
+
   /// Select a group and fetch its members
   Future<void> selectGroup(String id) async {
     try {
       isLoading = true;
       error = null;
+      paymentFlowStarted = false;
       safeNotifyListeners();
 
       // First, try to load from local database
@@ -816,9 +846,7 @@ class GroupsState extends ChangeNotifier {
   }
 
   /// Start the payment flow - send first payout to the first person
-  Future<bool> startPaymentFlow({
-    required List<Map<String, dynamic>> userOps,
-  }) async {
+  Future<bool> startPaymentFlow() async {
     if (selectedGroup == null || !areAllMembersReady()) return false;
 
     try {
@@ -827,71 +855,136 @@ class GroupsState extends ChangeNotifier {
       safeNotifyListeners();
 
       final userAccount = _userAccountAddress;
-
       if (userAccount == null) {
         throw Exception('User account not found');
       }
 
-      // Verify first person exists
-      final hasFirstPerson = currentGroupMembers.any(
-        (member) => member.payoutPosition == 0,
-      );
-      if (!hasFirstPerson) {
-        throw Exception('No first person found in group');
-      }
+      final (credentials, firstPerson, paymentPeriod) =
+          await _validateAndPreparePaymentData();
 
-      final now = DateTime.now();
-      final startDate = DateTime(now.year, now.month, 1);
-      final endDate = DateTime(now.year, now.month + 1, 0);
-
-      final paymentUserOps = <PaymentUserOp>[];
-
-      for (int i = 0; i < currentGroupMembers.length; i++) {
-        final member = currentGroupMembers[i];
-
-        final memberUserOp = userOps.firstWhere(
-          (op) => op['memberAccount'] == member.contactAccount,
-          orElse: () => throw Exception(
-              'UserOp not found for member: ${member.contactAccount}'),
-        );
-
-        paymentUserOps.add(
-          PaymentUserOp(
-            userOp: memberUserOp['userOp'],
-            startDate: startDate.toIso8601String(),
-            endDate: endDate.toIso8601String(),
-            executionMonth: 1,
-            status: 'pending',
-          ),
-        );
-      }
-
-      debugPrint(
-          'Sending ${paymentUserOps.length} user operations to payments API');
-
-      final response = await _paymentsService.createPayments(
-        groupId: selectedGroup!.id,
-        userId: userAccount,
-        userOps: paymentUserOps,
+      final paymentUserOps = await _preparePaymentUserOps(
+        credentials,
+        firstPerson,
+        paymentPeriod,
       );
 
-      if (!response.success) {
-        throw Exception(
-            response.error ?? response.message ?? 'Payment creation failed');
-      }
+      // Submit to backend
+      await _submitPaymentsToBackend(
+        userAccount,
+        paymentUserOps,
+      );
 
+      // Mark as started and notify
+      paymentFlowStarted = true;
       await Future.delayed(const Duration(seconds: 2));
-
       safeNotifyListeners();
+
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
       error = 'Failed to start payment flow: $e';
-      debugPrint('Error starting payment flow: $e');
+      debugPrint('error: $e');
+      debugPrint('stack trace: $stackTrace');
       return false;
     } finally {
       isLoading = false;
       safeNotifyListeners();
     }
+  }
+
+  Future<((EthereumAddress, EthPrivateKey), GroupMember, (DateTime, DateTime))>
+      _validateAndPreparePaymentData() async {
+    final credentials = _secureService.getCredentials();
+    if (credentials == null) {
+      throw Exception('Credentials not found');
+    }
+    final (account, key) = credentials;
+
+    final hasFirstPerson = currentGroupMembers.any(
+      (member) => member.payoutPosition == 0,
+    );
+    if (!hasFirstPerson) {
+      throw Exception('No first person found in group');
+    }
+
+    final firstPerson = currentGroupMembers.firstWhere(
+      (member) => member.payoutPosition == 0,
+    );
+
+    // Calculate payment period
+    final now = DateTime.now();
+    final startDate = DateTime(now.year, now.month, 1);
+    final endDate = DateTime(now.year, now.month + 1, 0);
+
+    return ((account, key), firstPerson, (startDate, endDate));
+  }
+
+  /// Prepares UserOps for all group members
+  Future<List<PaymentUserOp>> _preparePaymentUserOps(
+    (EthereumAddress, EthPrivateKey) credentials,
+    GroupMember firstPerson,
+    (DateTime, DateTime) paymentPeriod,
+  ) async {
+    final (account, key) = credentials;
+    final (startDate, endDate) = paymentPeriod;
+    final token = _config.getPrimaryToken();
+    final paymentUserOps = <PaymentUserOp>[];
+
+    for (int i = 0; i < currentGroupMembers.length; i++) {
+      final member = currentGroupMembers[i];
+
+      final contributionAmount = toUnit(
+        member.contributionAmount,
+        decimals: token.decimals,
+      );
+
+      final calldata = tokenTransferCallData(
+        _config,
+        account,
+        firstPerson.contactAccount,
+        contributionAmount,
+      );
+
+      final (hash, userOp) = await prepareUserop(
+        _config,
+        account,
+        key,
+        [token.address],
+        [calldata],
+      );
+      debugPrint('   - UserOp hash: $hash');
+
+      paymentUserOps.add(
+        PaymentUserOp(
+          userOp: userOp.toJson(),
+          startDate: startDate.toIso8601String(),
+          endDate: endDate.toIso8601String(),
+          executionMonth: 1,
+          status: 'pending',
+        ),
+      );
+    }
+
+    return paymentUserOps;
+  }
+
+  /// Submits payment UserOps to backend
+  Future<PaymentResponse> _submitPaymentsToBackend(
+    String userAccount,
+    List<PaymentUserOp> paymentUserOps,
+  ) async {
+    final response = await _paymentsService.createPayments(
+      groupId: selectedGroup!.id,
+      userId: userAccount,
+      userOps: paymentUserOps,
+    );
+
+    if (!response.success) {
+      throw Exception(
+        response.error ?? response.message ?? 'Payment creation failed',
+      );
+    }
+
+    return response;
   }
 
   Future<void> fetchUserGroups([String? userAddress]) async {
