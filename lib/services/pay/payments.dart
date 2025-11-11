@@ -8,11 +8,10 @@ class PaymentsService {
 
   PaymentsService({String? baseUrl})
       : _apiService = APIService(
-          baseURL: baseUrl ?? dotenv.env['CHECKOUT_API_BASE_URL'] ?? '',
+          baseURL: baseUrl ?? dotenv.env['RIMBA_API_BASE_URL'] ?? '',
         );
 
-  /// Creates payments by sending user operations to the backend
-  /// POST /api/v1/payments
+  /// POST /payments
   Future<PaymentResponse> createPayments({
     required String groupId,
     required String userId,
@@ -26,7 +25,7 @@ class PaymentsService {
       );
 
       final response = await _apiService.post(
-        url: '/api/v1/payments',
+        url: '/payments',
         body: request.toJson(),
       );
 
@@ -53,7 +52,7 @@ class PaymentsService {
       );
 
       final response = await _apiService.post(
-        url: '/api/v1/payments',
+        url: '/payments',
         body: request.toJson(),
         headers: headers,
       );

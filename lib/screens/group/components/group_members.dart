@@ -786,9 +786,10 @@ class _GroupMembersState extends State<GroupMembers> {
         final isLoading = groupsState.isLoading;
         final isCreator =
             widget.group.isCreator(groupsState.userAccountAddress);
+        final paymentFlowStarted = groupsState.paymentFlowStarted;
         final screenWidth = MediaQuery.of(context).size.width;
 
-        if (!isCreator) {
+        if (!isCreator || paymentFlowStarted) {
           return const SizedBox.shrink();
         }
 
@@ -823,21 +824,25 @@ class _GroupMembersState extends State<GroupMembers> {
 
         // If all members are ready, show regular list without reordering
         if (isAllReady) {
-          return Column(
-            children: members
-                .map<Widget>((member) =>
-                    _buildMemberCard(member, isCreator, isDraggable: false))
-                .toList(),
+          return SingleChildScrollView(
+            child: Column(
+              children: members
+                  .map<Widget>((member) =>
+                      _buildMemberCard(member, isCreator, isDraggable: false))
+                  .toList(),
+            ),
           );
         }
 
         // If not creator, show regular list
         if (!isCreator) {
-          return Column(
-            children: members
-                .map<Widget>((member) =>
-                    _buildMemberCard(member, isCreator, isDraggable: false))
-                .toList(),
+          return SingleChildScrollView(
+            child: Column(
+              children: members
+                  .map<Widget>((member) =>
+                      _buildMemberCard(member, isCreator, isDraggable: false))
+                  .toList(),
+            ),
           );
         }
 
@@ -1048,7 +1053,7 @@ class _GroupMembersState extends State<GroupMembers> {
     if (confirmed != true) return;
 
     final groupsState = context.read<GroupsState>();
-    final success = await groupsState.startPaymentFlow(userOps: []);
+    final success = await groupsState.startPaymentFlow();
 
     if (mounted) {
       if (success) {
