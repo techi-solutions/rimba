@@ -1,16 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:pay_app/services/config/config.dart';
 import 'package:pay_app/services/preferences/preferences.dart';
 import 'package:pay_app/services/secure/secure.dart';
 import 'package:pay_app/services/wallet/wallet.dart';
+import 'package:pay_app/services/monerium/monerium_auth_service.dart';
 import 'package:pay_app/utils/currency.dart';
+import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 
 class WalletState with ChangeNotifier {
   final PreferencesService _preferencesService = PreferencesService();
   final SecureService _secureService = SecureService();
+  final MoneriumAuthService moneriumAuthService = MoneriumAuthService();
 
   final Config _config;
   Config get config => _config;
@@ -33,6 +37,9 @@ class WalletState with ChangeNotifier {
 
   Timer? _pollingTimer;
   bool _mounted = true;
+
+  // Monerium auth state
+  String? _moneriumCodeVerifier;
   void safeNotifyListeners() {
     if (_mounted) {
       notifyListeners();
@@ -260,5 +267,93 @@ class WalletState with ChangeNotifier {
     tokenBalances = {};
     _preferencesService.setToken(null);
     safeNotifyListeners();
+  }
+
+  /// Generates PKCE values and builds the Monerium authorization URL
+  /// Returns a map with 'authUrl' and 'redirectUri' keys
+  Future<Map<String, String>> buildMoneriumAuthUrl() async {
+    try {
+      final clientId = dotenv.env['MONERIUM_CLIENT_ID'];
+      final redirectUri =
+          dotenv.env['MONERIUM_REDIRECT_URI'] ?? 'rimba://monerium';
+
+      if (clientId == null || clientId.isEmpty) {
+        throw Exception('MONERIUM_CLIENT_ID not configured');
+      }
+
+      // Generate PKCE values
+      _moneriumCodeVerifier = moneriumAuthService.generateCodeVerifier();
+      final codeChallenge =
+          moneriumAuthService.generateCodeChallenge(_moneriumCodeVerifier!);
+
+      final credentials = _secureService.getCredentials();
+
+      if (credentials == null) {
+        throw Exception('Credentials not found');
+      }
+
+      final (account, key) = credentials;
+
+      // Build authorization URL
+      final signature = moneriumAuthService.signOwnershipMessage(
+        privateKey: key,
+      );
+      print('ADDRESS: ${account.hexEip55}');
+      print('KEY ADDRESS: ${key.address.hexEip55}');
+      print('SIG RESULT: $signature');
+      final authUrl = moneriumAuthService.buildAuthorizationUrl(
+        clientId: clientId,
+        redirectUri: redirectUri,
+        codeChallenge: codeChallenge,
+        address: account.hexEip55,
+        // address: key.address.hexEip55,
+        signature: bytesToHex(signature, include0x: true),
+      );
+
+      return {
+        'authUrl': authUrl,
+        'redirectUri': redirectUri,
+      };
+    } catch (e, s) {
+      debugPrint('Error building Monerium auth URL: $e');
+      debugPrint('Stack trace: $s');
+      rethrow;
+    }
+  }
+
+  /// Exchanges the authorization code for an access token
+  /// [authorizationCode] - The code received from the OAuth redirect
+  Future<Map<String, dynamic>> exchangeMoneriumCode(
+      String authorizationCode) async {
+    try {
+      if (_moneriumCodeVerifier == null) {
+        throw Exception(
+            'Code verifier not found. Please start auth flow again.');
+      }
+
+      final clientId = dotenv.env['MONERIUM_CLIENT_ID'];
+      final redirectUri =
+          dotenv.env['MONERIUM_REDIRECT_URI'] ?? 'rimba://monerium';
+
+      if (clientId == null || clientId.isEmpty) {
+        throw Exception('MONERIUM_CLIENT_ID not configured');
+      }
+
+      final tokenResponse = await moneriumAuthService.exchangeCodeForToken(
+        authorizationCode: authorizationCode,
+        codeVerifier: _moneriumCodeVerifier!,
+        clientId: clientId,
+        redirectUri: redirectUri,
+      );
+
+      // Clear the code verifier after successful exchange
+      _moneriumCodeVerifier = null;
+
+      return tokenResponse;
+    } catch (e, s) {
+      debugPrint('Error exchanging Monerium code: $e');
+      debugPrint('Stack trace: $s');
+      rethrow;
+    }
   }
 }

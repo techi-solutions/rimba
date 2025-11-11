@@ -1,194 +1,182 @@
 import 'dart:convert';
 import 'dart:math';
-
-import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
-import 'package:pay_app/services/api/api.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:http/http.dart' as http;
+import 'package:web3dart/web3dart.dart';
 
 class MoneriumAuthService {
-  final APIService _apiService;
-  final String clientId;
-  final String clientSecret;
-  final String redirectUri;
+  static const String _baseUrl = 'https://api.monerium.app';
+  static const String _authPath = '/auth';
+  static const String _tokenPath = '/auth/token';
 
-  String? _codeVerifier;
-  String? _accessToken;
-
-  String? get accessToken => _accessToken;
-
-  MoneriumAuthService({
-    String? baseUrl,
-    String? clientId,
-    String? clientSecret,
-    String? redirectUri,
-  })  : clientId = clientId ?? dotenv.env['MONERIUM_CLIENT_ID'] ?? '',
-        clientSecret = clientSecret ?? dotenv.env['MONERIUM_CLIENT_SECRET'] ?? '',
-        redirectUri = redirectUri ?? dotenv.env['MONERIUM_REDIRECT_URI'] ?? 'rimba://monerium',
-        _apiService = APIService(
-          baseURL: baseUrl ?? dotenv.env['MONERIUM_BASE_URL'] ?? 'https://api.monerium.dev',
-        );
-
-  /// Generate PKCE code verifier and challenge
-  Future<Map<String, String>> generatePKCE() async {
-    try {
-      debugPrint('MoneriumAuthService.generatePKCE() - Generating PKCE');
-      final random = Random.secure();
-      final values = List<int>.generate(32, (i) => random.nextInt(256));
-      _codeVerifier = base64UrlEncode(values).replaceAll('=', '');
-      
-      final bytes = utf8.encode(_codeVerifier!);
-      final digest = sha256.convert(bytes);
-      final challenge = base64UrlEncode(digest.bytes).replaceAll('=', '');
-      
-      debugPrint('MoneriumAuthService.generatePKCE() - PKCE generated successfully');
-      return {
-        'verifier': _codeVerifier!,
-        'challenge': challenge,
-      };
-    } catch (e, s) {
-      debugPrint('MoneriumAuthService.generatePKCE() - ERROR: $e');
-      debugPrint('MoneriumAuthService.generatePKCE() - Stack trace: $s');
-      rethrow;
-    }
+  /// Generates a high-entropy random string for PKCE code verifier
+  ///
+  /// Per RFC 7636 Section 4.1:
+  /// - Must be a random, high-entropy string between 43 and 128 characters
+  /// - Uses unreserved characters: [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"
+  ///
+  /// Returns a base64url-encoded string (86 characters for 64 bytes of entropy)
+  String generateCodeVerifier() {
+    final Random random = Random.secure();
+    // Generate 64 random bytes (512 bits of entropy)
+    // Base64url encoding of 64 bytes produces 86 characters (within 43-128 range)
+    final List<int> values = List<int>.generate(64, (i) => random.nextInt(256));
+    // Base64url encode and remove padding (if any)
+    return base64UrlEncode(values).replaceAll('=', '');
   }
 
-  /// Build the Monerium OAuth authorization URL
-  Future<String> buildAuthUrl(String challenge, {String? address, String? signature, String? chain}) async {
-    try {
-      debugPrint('MoneriumAuthService.buildAuthUrl() - Building auth URL');
-      
-      if (clientId.isEmpty) {
-        throw Exception('Monerium Client ID not configured. Set MONERIUM_CLIENT_ID in .env');
-      }
-      
-      var url = "${_apiService.baseURL}/auth?"
-          "client_id=$clientId"
-          "&redirect_uri=$redirectUri"
-          "&response_type=code"
-          "&code_challenge=$challenge"
-          "&code_challenge_method=S256";
-      
-      if (address != null && signature != null && chain != null) {
-        debugPrint('MoneriumAuthService.buildAuthUrl() - Adding wallet parameters');
-        url += "&address=$address&signature=$signature&chain=$chain";
-      }
-      
-      debugPrint('MoneriumAuthService.buildAuthUrl() - Auth URL built successfully');
-      return url;
-    } catch (e, s) {
-      debugPrint('MoneriumAuthService.buildAuthUrl() - ERROR: $e');
-      debugPrint('MoneriumAuthService.buildAuthUrl() - Stack trace: $s');
-      rethrow;
-    }
+  /// Generates code challenge from code verifier using SHA-256 and base64 URL encoding
+  ///
+  /// Per RFC 7636 Section 4.2:
+  /// code_challenge = base64urlEncode(SHA256(ASCII(code_verifier)))
+  ///
+  /// [codeVerifier] - The code verifier string
+  /// Returns the base64url-encoded SHA-256 hash of the code verifier
+  String generateCodeChallenge(String codeVerifier) {
+    // Convert code verifier to ASCII bytes (RFC 7636 specifies ASCII encoding)
+    final List<int> bytes = utf8.encode(codeVerifier);
+    // Compute SHA-256 hash
+    final Digest digest = sha256.convert(bytes);
+    // Base64url encode the hash and remove padding
+    return base64UrlEncode(digest.bytes).replaceAll('=', '');
   }
 
-  /// Exchange authorization code for access token
-  Future<void> exchangeCodeForToken(String code) async {
+  /// Signs the Monerium ownership declaration message
+  ///
+  /// Signs the message with the provided private key and returns the signature
+  /// in the format expected by Safe's checkSignatures function.
+  ///
+  /// The signature is a standard ECDSA signature (65 bytes: r | s | v) that
+  /// can be validated by the Safe contract's isValidSignature method.
+  ///
+  /// Uses Ethereum personal sign message format:
+  /// "\x19Ethereum Signed Message:\n" + length(message) + message
+  ///
+  /// [privateKey] - The Ethereum private key to sign with
+  ///
+  /// Returns a Uint8List of 65 bytes (r | s | v) where v = 27 or 28
+  Uint8List signOwnershipMessage({
+    required EthPrivateKey privateKey,
+  }) {
+    const message = 'I hereby declare that I am the address owner.';
+
+    // Convert message to UTF-8 bytes (raw message)
+    // signPersonalMessageToUint8List expects raw message bytes, not a hash.
+    // It will add the Ethereum Signed Message prefix and hash internally.
+    final messageBytes = utf8.encode(message);
+
+    // Use signPersonalMessageToUint8List which handles the Ethereum Signed Message
+    // prefix and hashing internally. It expects the raw message bytes.
+    final signature = privateKey.signPersonalMessageToUint8List(messageBytes);
+
+    // Verify the signature is exactly 65 bytes
+    if (signature.length != 65) {
+      throw Exception(
+          'Invalid signature length: expected 65 bytes, got ${signature.length}');
+    }
+
+    return signature;
+  }
+
+  /// Constructs the authorization URL for Monerium OAuth flow
+  ///
+  /// [clientId] - Your Monerium client UUID
+  /// [redirectUri] - The redirect URI registered with your Monerium app
+  /// [codeChallenge] - The PKCE code challenge
+  /// [address] - Optional Ethereum address for automated wallet connection
+  /// [signature] - Optional signature for automated wallet connection
+  ///
+  /// Returns the authorization URL as a string
+  String buildAuthorizationUrl({
+    required String clientId,
+    required String redirectUri,
+    required String codeChallenge,
+    String? address,
+    String? signature,
+  }) {
+    final params = <String, String>{
+      'client_id': clientId,
+      'redirect_uri': redirectUri,
+      'code_challenge': codeChallenge,
+      'code_challenge_method': 'S256',
+      'chain': 'gnosis',
+    };
+
+    // Add optional parameters for automated wallet connection
+    if (address != null) {
+      params['address'] = address;
+    }
+    if (signature != null) {
+      params['signature'] = signature;
+    }
+
+    print('PARAMS ADDRESS: $address');
+    print('PARAMS SIGNATURE: $signature');
+
+    final uri = Uri.https('api.monerium.app', _authPath, params);
+
+    return uri.toString();
+  }
+
+  /// Exchanges the authorization code for an access token
+  ///
+  /// [authorizationCode] - The authorization code received from the redirect
+  /// [codeVerifier] - The original code verifier used to generate the challenge
+  /// [clientId] - Your Monerium client UUID
+  /// [redirectUri] - The redirect URI used in the authorization request
+  ///
+  /// Returns a map containing the token response (access_token, token_type, etc.)
+  /// Throws an exception if the token exchange fails
+  Future<Map<String, dynamic>> exchangeCodeForToken({
+    required String authorizationCode,
+    required String codeVerifier,
+    required String clientId,
+    required String redirectUri,
+  }) async {
     try {
-      debugPrint('MoneriumAuthService.exchangeCodeForToken() - Exchanging code for token');
-      
-      if (_codeVerifier == null) {
-        throw Exception("PKCE verifier not found. Call generatePKCE() first.");
-      }
+      final uri = Uri.parse('$_baseUrl$_tokenPath');
 
-      if (clientId.isEmpty || clientSecret.isEmpty) {
-        throw Exception('Monerium credentials not configured. Set MONERIUM_CLIENT_ID and MONERIUM_CLIENT_SECRET in .env');
-      }
-
-      final body = {
-        'grant_type': 'authorization_code',
-        'code': code,
-        'redirect_uri': redirectUri,
+      final bodyParams = {
         'client_id': clientId,
-        'client_secret': clientSecret,
-        'code_verifier': _codeVerifier!,
+        'code': authorizationCode,
+        'redirect_uri': redirectUri,
+        'grant_type': 'authorization_code',
+        'code_verifier': codeVerifier,
       };
 
-      final data = await _apiService.post(
-        url: '/auth/token',
-        body: body,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      );
+      final body = bodyParams.entries
+          .map((e) =>
+              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+          .join('&');
 
-      _accessToken = data['access_token'];
-      debugPrint('MoneriumAuthService.exchangeCodeForToken() - Token obtained successfully');
-      
-      // Optionally store refresh token and expiry
-      // final refreshToken = data['refresh_token'];
-      // final expiresIn = data['expires_in'];
-    } catch (e, s) {
-      debugPrint('MoneriumAuthService.exchangeCodeForToken() - ERROR: $e');
-      debugPrint('MoneriumAuthService.exchangeCodeForToken() - Stack trace: $s');
-      rethrow;
-    }
-  }
+      final response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body,
+          )
+          .timeout(
+            const Duration(seconds: 60),
+          );
 
-  /// Make authenticated requests to Monerium API
-  Future<dynamic> makeAuthenticatedRequest(String endpoint, {String method = 'GET', Map<String, dynamic>? body}) async {
-    try {
-      debugPrint('MoneriumAuthService.makeAuthenticatedRequest() - $method $endpoint');
-      
-      if (_accessToken == null) {
-        throw UnauthorizedException();
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        debugPrint('Monerium token exchange failed: ${response.statusCode}');
+        debugPrint('Response: ${response.body}');
+        throw Exception(
+          'Token exchange failed: [${response.statusCode}] ${response.reasonPhrase}',
+        );
       }
 
-      final headers = {
-        'Authorization': 'Bearer $_accessToken',
-      };
-
-      switch (method.toUpperCase()) {
-        case 'POST':
-          return await _apiService.post(url: endpoint, body: body!, headers: headers);
-        case 'PUT':
-          return await _apiService.put(url: endpoint, body: body!, headers: headers);
-        case 'DELETE':
-          return await _apiService.delete(url: endpoint, body: body ?? {}, headers: headers);
-        default:
-          return await _apiService.get(url: endpoint, headers: headers);
-      }
+      final responseData = jsonDecode(utf8.decode(response.bodyBytes));
+      return responseData as Map<String, dynamic>;
     } catch (e, s) {
-      debugPrint('MoneriumAuthService.makeAuthenticatedRequest() - ERROR: $e');
-      debugPrint('MoneriumAuthService.makeAuthenticatedRequest() - Stack trace: $s');
+      debugPrint('Error exchanging code for token: $e');
+      debugPrint('Stack trace: $s');
       rethrow;
     }
-  }
-
-  /// Get user profile from Monerium
-  Future<Map<String, dynamic>?> getProfile() async {
-    try {
-      debugPrint('MoneriumAuthService.getProfile() - Fetching profile');
-      final response = await makeAuthenticatedRequest('/profiles');
-      debugPrint('MoneriumAuthService.getProfile() - Profile fetched');
-      return response;
-    } catch (e, s) {
-      debugPrint('MoneriumAuthService.getProfile() - ERROR: $e');
-      debugPrint('MoneriumAuthService.getProfile() - Stack trace: $s');
-      return null;
-    }
-  }
-
-  /// Get linked wallets
-  Future<List<dynamic>?> getWallets() async {
-    try {
-      debugPrint('MoneriumAuthService.getWallets() - Fetching wallets');
-      final response = await makeAuthenticatedRequest('/wallets');
-      debugPrint('MoneriumAuthService.getWallets() - Wallets fetched');
-      return response;
-    } catch (e, s) {
-      debugPrint('MoneriumAuthService.getWallets() - ERROR: $e');
-      debugPrint('MoneriumAuthService.getWallets() - Stack trace: $s');
-      return null;
-    }
-  }
-
-  /// Clear authentication state
-  void clearAuth() {
-    debugPrint('MoneriumAuthService.clearAuth() - Clearing authentication state');
-    _accessToken = null;
-    _codeVerifier = null;
   }
 }
-

@@ -10,7 +10,7 @@ import 'package:pay_app/widgets/blurry_child.dart';
 import 'package:pay_app/widgets/cards/card.dart' as cardWidget;
 import 'package:pay_app/widgets/cards/card_skeleton.dart';
 import 'package:pay_app/widgets/coin_logo.dart';
-import 'package:pay_app/screens/wallet/monerium_connect_page.dart';
+import 'package:pay_app/widgets/webview/connected_webview_modal.dart';
 import 'package:provider/provider.dart';
 
 class ProfileBar extends StatefulWidget {
@@ -63,9 +63,40 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
     navigator.push('/my-account/settings');
   }
 
-  void handleMoneriumConnect() {
+  Future<void> handleMoneriumConnect() async {
     HapticFeedback.mediumImpact();
-    showMoneriumConnectModal(context);
+
+    final walletState = context.read<WalletState>();
+
+    try {
+      // Build auth URL with PKCE (handled in wallet state)
+      final authData = await walletState.buildMoneriumAuthUrl();
+      final authUrl = authData['authUrl']!;
+      final redirectUrl = authData['redirectUri']!;
+      print('authUrl: $authUrl');
+      print('redirectUrl: $redirectUrl');
+
+      if (!mounted) {
+        return;
+      }
+
+      await showCupertinoModalPopup<String?>(
+        context: context,
+        barrierDismissible: true,
+        useRootNavigator: false,
+        barrierColor: blackColor.withAlpha(160),
+        builder: (modalContext) {
+          return ConnectedWebViewModal(
+            modalKey: 'monerium-connect',
+            url: authUrl,
+            redirectUrl: redirectUrl,
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('Error starting Monerium connect: $e');
+      // TODO: Show error to user
+    }
   }
 
   @override
@@ -153,9 +184,8 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
                       profile: appProfile,
                       usernamePrefix: '@',
                       icon: CupertinoIcons.device_phone_portrait,
-                      onTopUpPressed: !widget.loading
-                          ? handleMoneriumConnect
-                          : null,
+                      onTopUpPressed:
+                          !widget.loading ? handleMoneriumConnect : null,
                       onCardNameTapped: handleEditProfile,
                       onCardPressed: null,
                       onCardBalanceTapped: null,
