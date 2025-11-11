@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
+import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 
 class MoneriumAuthService {
@@ -51,25 +52,30 @@ class MoneriumAuthService {
   /// The signature is a standard ECDSA signature (65 bytes: r | s | v) that
   /// can be validated by the Safe contract's isValidSignature method.
   ///
-  /// Uses Ethereum personal sign message format:
+  /// For EOAs: Uses Ethereum personal sign message format:
   /// "\x19Ethereum Signed Message:\n" + length(message) + message
   ///
+  /// For Safe wallets: Computes the Safe-encoded message hash and signs it.
+  /// The Safe encoding follows EIP-712 style encoding with domain separator.
+  ///
   /// [privateKey] - The Ethereum private key to sign with
+  /// [isSafeWallet] - Whether the address is a Safe wallet
+  /// [safeAddress] - The Safe wallet address (required if isSafeWallet is true)
+  /// [chainId] - The chain ID (defaults to 100 for Gnosis)
   ///
   /// Returns a Uint8List of 65 bytes (r | s | v) where v = 27 or 28
   Uint8List signOwnershipMessage({
     required EthPrivateKey privateKey,
+    Uint8List? message,
+    int chainId = 100,
   }) {
-    const message = 'I hereby declare that I am the address owner.';
+    final defaultMessage =
+        utf8.encode('I hereby declare that I am the address owner.');
 
-    // Convert message to UTF-8 bytes (raw message)
-    // signPersonalMessageToUint8List expects raw message bytes, not a hash.
-    // It will add the Ethereum Signed Message prefix and hash internally.
-    final messageBytes = utf8.encode(message);
+    Uint8List signature;
 
-    // Use signPersonalMessageToUint8List which handles the Ethereum Signed Message
-    // prefix and hashing internally. It expects the raw message bytes.
-    final signature = privateKey.signPersonalMessageToUint8List(messageBytes);
+    final messageBytes = message ?? defaultMessage;
+    signature = privateKey.signPersonalMessageToUint8List(messageBytes);
 
     // Verify the signature is exactly 65 bytes
     if (signature.length != 65) {

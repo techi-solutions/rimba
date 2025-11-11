@@ -11,6 +11,7 @@ class SimpleAccount {
   final String addr;
   late Account contract;
   late DeployedContract rcontract;
+  late DeployedContract ccontract;
 
   // StreamSubscription<TransferSingle>? _sub;
 
@@ -28,7 +29,13 @@ class SimpleAccount {
 
     final cabi = ContractAbi.fromJson(abi, 'Account');
 
+    final compatFallbackHandlerAbi = ContractAbi.fromJson(
+        '[{"inputs":[{"internalType":"address","name":"safe","type":"address"},{"internalType":"bytes","name":"message","type":"bytes"}],"name":"getMessageHashForSafe","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"}]',
+        'CompatFallbackHandler');
+
     rcontract = DeployedContract(cabi, EthereumAddress.fromHex(addr));
+    ccontract = DeployedContract(
+        compatFallbackHandlerAbi, EthereumAddress.fromHex(addr));
   }
 
   Future<EthereumAddress> tokenEntryPoint() async {
@@ -76,6 +83,17 @@ class SimpleAccount {
     final function = rcontract.function('transferOwnership');
 
     return function.encodeCall([EthereumAddress.fromHex(newOwner)]);
+  }
+
+  Future<Uint8List> getMessageHashForSafe(Uint8List message) async {
+    final function = ccontract.function('getMessageHashForSafe');
+
+    final result = await client.call(
+        contract: ccontract,
+        function: function,
+        params: [EthereumAddress.fromHex(addr), message]);
+
+    return result[0];
   }
 
   Uint8List upgradeToCallData(String implementation) {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -294,13 +295,19 @@ class WalletState with ChangeNotifier {
 
       final (account, key) = credentials;
 
+      final simpleAccount = await _config.getSimpleAccount(account.hexEip55);
+
+      final messageHash = await simpleAccount.getMessageHashForSafe(
+          utf8.encode('I hereby declare that I am the address owner.'));
+
       // Build authorization URL
       final signature = moneriumAuthService.signOwnershipMessage(
         privateKey: key,
+        message: messageHash,
       );
       print('ADDRESS: ${account.hexEip55}');
       print('KEY ADDRESS: ${key.address.hexEip55}');
-      print('SIG RESULT: $signature');
+      print('SIG RESULT: ${bytesToHex(signature, include0x: true)}');
       final authUrl = moneriumAuthService.buildAuthorizationUrl(
         clientId: clientId,
         redirectUri: redirectUri,
