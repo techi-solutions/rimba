@@ -132,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Initialize transactions for the current account
     if (widget.accountAddress.isNotEmpty) {
+      _walletState.startBalancePolling();
       _transactionsState.getTransactions(token: currentTokenAddress);
     }
 
@@ -192,6 +193,8 @@ class _HomeScreenState extends State<HomeScreen>
     WidgetsBinding.instance.removeObserver(this);
 
     _stopInitRetries = true;
+
+    _walletState.stopBalancePolling();
 
     _debouncer.dispose();
 
@@ -596,8 +599,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     final config = context.select((WalletState state) => state.config);
 
-    final nothingFound =
-        _searchController.text.isNotEmpty && groups.isEmpty;
+    final nothingFound = _searchController.text.isNotEmpty && groups.isEmpty;
 
     return AnimatedBuilder(
       animation: _backgroundColorAnimation,
@@ -750,21 +752,24 @@ class _HomeScreenState extends State<HomeScreen>
                                     ),
                                     const SizedBox(height: 32),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Container(
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 20, vertical: 10),
                                           decoration: BoxDecoration(
                                             color: CupertinoColors.systemGrey6,
-                                            borderRadius: BorderRadius.circular(20),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: const [
                                               Icon(
                                                 CupertinoIcons.search,
-                                                color: CupertinoColors.activeBlue,
+                                                color:
+                                                    CupertinoColors.activeBlue,
                                                 size: 20,
                                               ),
                                               SizedBox(width: 8),
@@ -783,21 +788,25 @@ class _HomeScreenState extends State<HomeScreen>
                                     ),
                                     const SizedBox(height: 12),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Container(
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 20, vertical: 10),
                                           decoration: BoxDecoration(
                                             color: CupertinoColors.systemGrey6,
-                                            borderRadius: BorderRadius.circular(20),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: const [
                                               Icon(
-                                                CupertinoIcons.add_circled_solid,
-                                                color: CupertinoColors.activeBlue,
+                                                CupertinoIcons
+                                                    .add_circled_solid,
+                                                color:
+                                                    CupertinoColors.activeBlue,
                                                 size: 20,
                                               ),
                                               SizedBox(width: 8),

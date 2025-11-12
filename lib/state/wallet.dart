@@ -134,7 +134,17 @@ class WalletState with ChangeNotifier {
   }
 
   Future<void> updateBalance() async {
-    tokenBalances = _preferencesService.tokenBalances(_address!.hexEip55);
+    final credentials = _secureService.getCredentials();
+
+    EthereumAddress? keyAddress;
+
+    if (credentials != null) {
+      keyAddress = credentials.$2.address;
+    }
+    print('KEY ADDRESS: ${keyAddress?.hexEip55}');
+
+    tokenBalances = _preferencesService
+        .tokenBalances(keyAddress?.hexEip55 ?? _address!.hexEip55);
     safeNotifyListeners();
 
     final tokenConfig = config.getToken(
@@ -143,7 +153,7 @@ class WalletState with ChangeNotifier {
 
     final balance = await getBalance(
       _config,
-      _address!,
+      keyAddress ?? _address!,
       tokenAddress: tokenConfig.address,
     );
 
@@ -154,7 +164,7 @@ class WalletState with ChangeNotifier {
     safeNotifyListeners();
 
     await _preferencesService.setTokenBalances(
-        _address!.hexEip55, tokenBalances);
+        keyAddress?.hexEip55 ?? _address!.hexEip55, tokenBalances);
   }
 
   Future<void> loadTokenBalances() async {
@@ -175,12 +185,21 @@ class WalletState with ChangeNotifier {
 
       final balances = <String, String>{};
 
+      final credentials = _secureService.getCredentials();
+
+      EthereumAddress? keyAddress;
+
+      if (credentials != null) {
+        keyAddress = credentials.$2.address;
+      }
+      print('KEY ADDRESS: ${keyAddress?.hexEip55}');
+
       for (final tokenEntry in _config.tokens.entries) {
         final tokenAddress = tokenEntry.value.address;
         try {
           final balance = await getBalance(
             _config,
-            _address!,
+            keyAddress ?? _address!,
             tokenAddress: tokenAddress,
           );
 
@@ -199,7 +218,7 @@ class WalletState with ChangeNotifier {
       safeNotifyListeners();
 
       await _preferencesService.setTokenBalances(
-        _address!.hexEip55,
+        keyAddress?.hexEip55 ?? _address!.hexEip55,
         tokenBalances,
       );
     } catch (e) {
@@ -221,13 +240,22 @@ class WalletState with ChangeNotifier {
 
       final balances = <String, String>{};
 
+      final credentials = _secureService.getCredentials();
+
+      EthereumAddress? keyAddress;
+
+      if (credentials != null) {
+        keyAddress = credentials.$2.address;
+      }
+      print('KEY ADDRESS: ${keyAddress?.hexEip55}');
+
       for (final tokenEntry in _config.tokens.entries) {
         final tokenKey = tokenEntry.key;
         final tokenAddress = tokenEntry.value.address;
         try {
           final balance = await getBalance(
             _config,
-            _address!,
+            keyAddress ?? _address!,
             tokenAddress: tokenAddress,
           );
           balances[tokenAddress] = formatCurrency(
@@ -242,7 +270,7 @@ class WalletState with ChangeNotifier {
 
       tokenBalances = balances;
       await _preferencesService.setTokenBalances(
-        _address!.hexEip55,
+        keyAddress?.hexEip55 ?? _address!.hexEip55,
         tokenBalances,
       );
       safeNotifyListeners();
