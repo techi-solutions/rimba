@@ -19,7 +19,7 @@ class ConnectedWebViewModal extends StatefulWidget {
     this.modalKey,
     required this.url,
     required this.redirectUrl,
-  })  : closeUrl = '$redirectUrl/close',
+  })  : closeUrl = '$redirectUrl/?code=',
         pluginUrl = '$redirectUrl/#/?dl=plugin';
 
   @override

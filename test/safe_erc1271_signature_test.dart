@@ -55,10 +55,6 @@ void main() {
     const message = 'I hereby declare that I am the address owner.';
     final messageBytes = utf8.encode(message);
 
-    // Encode message data for Safe (this is what Safe expects as _data parameter)
-    final preMessage =
-        await simpleAccount.encodeMessageDataForSafe(messageBytes);
-
     // Get message hash for Safe - this is what Safe will check against
     // Pass messageBytes directly (not preMessage) to match what Safe will do internally
     final messageHash = await simpleAccount.getMessageHashForSafe(messageBytes);
@@ -67,18 +63,35 @@ void main() {
     // Safe SDK: hashSafeMessage(message.data) = keccak256(message.data)
     // Then gets safeMessageHash and signs it
     final hashOfMessage = keccak256(messageBytes);
-    final hashOfPreMessage = keccak256(preMessage);
 
-    // Try signing messageHash with personal sign and adjust v for eth_sign flow (v > 30)
-    // Safe's checkSignatures will handle eth_sign flow when v > 30
-    var signature = privateKey.signPersonalMessageToUint8List(messageHash);
+    // For the updated isValidSignature(bytes32, bytes), the flow is:
+    // 1. Updated function receives _dataHash (bytes32) - we'll pass hashOfMessage
+    // 2. Calls legacy with abi.encode(_dataHash) - this is just the 32 bytes of hashOfMessage
+    // 3. Legacy does encodeMessageDataForSafe(safe, abi.encode(_dataHash))
+    // 4. Then hashes: keccak256(encodeMessageDataForSafe(safe, abi.encode(_dataHash)))
+    // 5. Checks signature against that hash
+    //
+    // So we need to compute: keccak256(encodeMessageDataForSafe(safe, hashOfMessage))
+    // where hashOfMessage is treated as 32 bytes (which it already is)
+    // Let's compute the encoded message data for Safe with hashOfMessage
+    final encodedHashForSafe =
+        await simpleAccount.encodeMessageDataForSafe(hashOfMessage);
+    final hashThatSafeWillCheck = keccak256(encodedHashForSafe);
+
+    // Sign the hash that Safe will actually check
+    var signature =
+        privateKey.signPersonalMessageToUint8List(hashThatSafeWillCheck);
+
+    const offset = 4;
 
     // Adjust v for eth_sign flow (Safe checks if v > 30)
     // If v is 27 or 28, we need to make it 31 or 32
     if (signature[64] == 27) {
-      signature = Uint8List.fromList([...signature.sublist(0, 64), 31]);
+      signature = Uint8List.fromList(
+          [...signature.sublist(0, 64), signature[64] + offset]);
     } else if (signature[64] == 28) {
-      signature = Uint8List.fromList([...signature.sublist(0, 64), 32]);
+      signature = Uint8List.fromList(
+          [...signature.sublist(0, 64), signature[64] + offset]);
     }
 
     // Verify signature is 65 bytes
@@ -90,12 +103,12 @@ void main() {
     // So we need to recover from the personal sign hash
     final personalSignHash = keccak256(Uint8List.fromList([
       ...utf8.encode('\x19Ethereum Signed Message:\n32'),
-      ...messageHash,
+      ...hashThatSafeWillCheck,
     ]));
     final recoveredMsgSig = MsgSignature(
       hexToInt(bytesToHex(signature.sublist(0, 32), include0x: true)),
       hexToInt(bytesToHex(signature.sublist(32, 64), include0x: true)),
-      signature[64] - 4, // Adjust v back for recovery
+      signature[64] - offset, // Adjust v back for recovery
     );
     final recoveredPubKey = ecRecover(personalSignHash, recoveredMsgSig);
     final recoveredAddress = EthereumAddress.fromPublicKey(recoveredPubKey);
@@ -107,21 +120,24 @@ void main() {
         'Addresses match: ${expectedOwnerAddress.hexEip55.toLowerCase() == recoveredAddress.hexEip55.toLowerCase()}');
     print('Safe Address: $safeAddress');
     print('Message: $message');
-    print('PreMessage: ${bytesToHex(preMessage, include0x: true)}');
     print('Message Hash: ${bytesToHex(messageHash, include0x: true)}');
+    print('Bytes of Message: ${bytesToHex(messageBytes, include0x: true)}');
     print('Hash of Message: ${bytesToHex(hashOfMessage, include0x: true)}');
     print(
-        'Hash of PreMessage: ${bytesToHex(hashOfPreMessage, include0x: true)}');
+        'Encoded Hash for Safe: ${bytesToHex(encodedHashForSafe, include0x: true)}');
+    print(
+        'Hash that Safe will check: ${bytesToHex(hashThatSafeWillCheck, include0x: true)}');
     print('Signature: ${bytesToHex(signature, include0x: true)}');
     print('Signature v: ${signature[64]}');
 
     // Verify signature against Safe using isValidSignature
-    // Pass messageBytes (not preMessage) so Safe encodes it once
-    // Safe will: encodeMessageDataForSafe(safe, messageBytes) -> preMessage
-    // Then: keccak256(preMessage) -> messageHash (which we signed)
-    // Then: checkSignatures(messageHash, preMessage, signature)
+    // The updated isValidSignature(bytes32 _dataHash, bytes calldata _signature) expects:
+    // - _dataHash: bytes32 (32 bytes) - hash of the original message data
+    // We pass hashOfMessage (keccak256(messageBytes)) as _dataHash
+    // Safe will check against: keccak256(encodeMessageDataForSafe(safe, hashOfMessage))
+    // Which we computed as hashThatSafeWillCheck and signed
     final result =
-        await simpleAccount.isValidSignature(messageBytes, signature);
+        await simpleAccount.isValidSignature(hashOfMessage, signature);
 
     // Print result
     print('isValidSignature result: ${bytesToHex(result, include0x: true)}');

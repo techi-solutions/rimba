@@ -297,18 +297,38 @@ class WalletState with ChangeNotifier {
 
       final simpleAccount = await _config.getSimpleAccount(account.hexEip55);
 
-      final message =
-          utf8.encode('I hereby declare that I am the address owner.');
+      // The message to sign
+      const message = 'I hereby declare that I am the address owner.';
+      final messageBytes = utf8.encode(message);
 
-      // Get message hash for Safe - pass messageBytes directly (not preMessage)
-      // to match what Safe will do internally
-      final messageHash = await simpleAccount.getMessageHashForSafe(message);
+      // Get message hash for Safe - this is what Safe will check against
+      // Pass messageBytes directly (not preMessage) to match what Safe will do internally
+      final messageHash =
+          await simpleAccount.getMessageHashForSafe(messageBytes);
 
-      // Build authorization URL
-      // Sign the messageHash with personal sign and adjust v for eth_sign flow
+      // Try different hashes to sign with personal sign (like Safe SDK does)
+      // Safe SDK: hashSafeMessage(message.data) = keccak256(message.data)
+      // Then gets safeMessageHash and signs it
+      final hashOfMessage = keccak256(messageBytes);
+
+      // For the updated isValidSignature(bytes32, bytes), the flow is:
+      // 1. Updated function receives _dataHash (bytes32) - we'll pass hashOfMessage
+      // 2. Calls legacy with abi.encode(_dataHash) - this is just the 32 bytes of hashOfMessage
+      // 3. Legacy does encodeMessageDataForSafe(safe, abi.encode(_dataHash))
+      // 4. Then hashes: keccak256(encodeMessageDataForSafe(safe, abi.encode(_dataHash)))
+      // 5. Checks signature against that hash
+      //
+      // So we need to compute: keccak256(encodeMessageDataForSafe(safe, hashOfMessage))
+      // where hashOfMessage is treated as 32 bytes (which it already is)
+      // Let's compute the encoded message data for Safe with hashOfMessage
+      final encodedHashForSafe =
+          await simpleAccount.encodeMessageDataForSafe(hashOfMessage);
+      final hashThatSafeWillCheck = keccak256(encodedHashForSafe);
+
+      // Sign the hash that Safe will actually check
       final signature = moneriumAuthService.signOwnershipMessage(
         privateKey: key,
-        message: messageHash,
+        // message: hashThatSafeWillCheck,
       );
 
       print('ADDRESS: ${account.hexEip55}');
@@ -318,17 +338,21 @@ class WalletState with ChangeNotifier {
       print('v ${signature[64]}');
 
       // Verify signature against Safe using isValidSignature
-      // Pass keccak256(message) as _dataHash (bytes32)
-      final result =
-          await simpleAccount.isValidSignature(keccak256(message), signature);
-      print('RESULT: ${bytesToHex(result, include0x: true)}');
+      // Pass hashOfMessage (keccak256(message)) as _dataHash (bytes32)
+      try {
+        final result =
+            await simpleAccount.isValidSignature(hashOfMessage, signature);
+        print('RESULT: ${bytesToHex(result, include0x: true)}');
+      } catch (e) {
+        debugPrint('Error verifying signature: $e');
+      }
 
       final authUrl = moneriumAuthService.buildAuthorizationUrl(
         clientId: clientId,
         redirectUri: redirectUri,
         codeChallenge: codeChallenge,
-        address: account.hexEip55,
-        // address: key.address.hexEip55,
+        // address: account.hexEip55,
+        address: key.address.hexEip55,
         signature: bytesToHex(signature, include0x: true),
       );
 

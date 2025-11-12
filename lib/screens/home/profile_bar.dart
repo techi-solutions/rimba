@@ -10,8 +10,10 @@ import 'package:pay_app/widgets/blurry_child.dart';
 import 'package:pay_app/widgets/cards/card.dart' as cardWidget;
 import 'package:pay_app/widgets/cards/card_skeleton.dart';
 import 'package:pay_app/widgets/coin_logo.dart';
+import 'package:pay_app/widgets/toast/toast.dart';
 import 'package:pay_app/widgets/webview/connected_webview_modal.dart';
 import 'package:provider/provider.dart';
+import 'package:toastification/toastification.dart';
 
 class ProfileBar extends StatefulWidget {
   final String? selectedAddress;
@@ -80,7 +82,7 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
         return;
       }
 
-      await showCupertinoModalPopup<String?>(
+      final path = await showCupertinoModalPopup<String?>(
         context: context,
         barrierDismissible: true,
         useRootNavigator: false,
@@ -92,6 +94,21 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
             redirectUrl: redirectUrl,
           );
         },
+      );
+
+      if (path == null || !mounted) {
+        return;
+      }
+
+      // display success toast
+      toastification.showCustom(
+        context: context,
+        autoCloseDuration: const Duration(seconds: 5),
+        alignment: Alignment.bottomCenter,
+        builder: (context, toast) => Toast(
+          icon: const Text('🚀'),
+          title: Text('Monerium connected successfully'),
+        ),
       );
     } catch (e) {
       debugPrint('Error starting Monerium connect: $e');

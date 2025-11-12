@@ -61,6 +61,7 @@ class MoneriumAuthService {
   /// Returns a Uint8List of 65 bytes (r | s | v) where v = 31 or 32 for eth_sign flow
   Uint8List signOwnershipMessage({
     required EthPrivateKey privateKey,
+    bool isSafe = false,
     Uint8List? message,
     int chainId = 100,
   }) {
@@ -78,12 +79,16 @@ class MoneriumAuthService {
           'Invalid signature length: expected 65 bytes, got ${signature.length}');
     }
 
+    final offset = isSafe ? 4 : 0;
+
     // Adjust v for eth_sign flow (Safe checks if v > 30)
     // If v is 27 or 28, we need to make it 31 or 32
     if (signature[64] == 27) {
-      signature = Uint8List.fromList([...signature.sublist(0, 64), 31]);
+      signature = Uint8List.fromList(
+          [...signature.sublist(0, 64), signature[64] + offset]);
     } else if (signature[64] == 28) {
-      signature = Uint8List.fromList([...signature.sublist(0, 64), 32]);
+      signature = Uint8List.fromList(
+          [...signature.sublist(0, 64), signature[64] + offset]);
     }
 
     return signature;
