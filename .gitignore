@@ -45,9 +45,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-.env
 
 # Firebase
 /ios/Runner/GoogleService-Info.plist
 /android/app/google-services.json
 firebase_options.dart
+config.bat
+node_modules
