@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
-import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 
 class MoneriumAuthService {
@@ -52,18 +51,14 @@ class MoneriumAuthService {
   /// The signature is a standard ECDSA signature (65 bytes: r | s | v) that
   /// can be validated by the Safe contract's isValidSignature method.
   ///
-  /// For EOAs: Uses Ethereum personal sign message format:
-  /// "\x19Ethereum Signed Message:\n" + length(message) + message
-  ///
-  /// For Safe wallets: Computes the Safe-encoded message hash and signs it.
-  /// The Safe encoding follows EIP-712 style encoding with domain separator.
+  /// For Safe wallets: Uses personal sign on the message hash and adjusts v
+  /// for eth_sign flow (v > 30) so Safe's checkSignatures can handle it.
   ///
   /// [privateKey] - The Ethereum private key to sign with
-  /// [isSafeWallet] - Whether the address is a Safe wallet
-  /// [safeAddress] - The Safe wallet address (required if isSafeWallet is true)
+  /// [message] - The message hash to sign (should be the Safe message hash)
   /// [chainId] - The chain ID (defaults to 100 for Gnosis)
   ///
-  /// Returns a Uint8List of 65 bytes (r | s | v) where v = 27 or 28
+  /// Returns a Uint8List of 65 bytes (r | s | v) where v = 31 or 32 for eth_sign flow
   Uint8List signOwnershipMessage({
     required EthPrivateKey privateKey,
     Uint8List? message,
@@ -72,15 +67,23 @@ class MoneriumAuthService {
     final defaultMessage =
         utf8.encode('I hereby declare that I am the address owner.');
 
-    Uint8List signature;
-
     final messageBytes = message ?? defaultMessage;
-    signature = privateKey.signPersonalMessageToUint8List(messageBytes);
+
+    // Sign the message hash with personal sign
+    var signature = privateKey.signPersonalMessageToUint8List(messageBytes);
 
     // Verify the signature is exactly 65 bytes
     if (signature.length != 65) {
       throw Exception(
           'Invalid signature length: expected 65 bytes, got ${signature.length}');
+    }
+
+    // Adjust v for eth_sign flow (Safe checks if v > 30)
+    // If v is 27 or 28, we need to make it 31 or 32
+    if (signature[64] == 27) {
+      signature = Uint8List.fromList([...signature.sublist(0, 64), 31]);
+    } else if (signature[64] == 28) {
+      signature = Uint8List.fromList([...signature.sublist(0, 64), 32]);
     }
 
     return signature;

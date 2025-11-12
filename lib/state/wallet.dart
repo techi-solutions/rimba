@@ -297,17 +297,32 @@ class WalletState with ChangeNotifier {
 
       final simpleAccount = await _config.getSimpleAccount(account.hexEip55);
 
-      final messageHash = await simpleAccount.getMessageHashForSafe(
-          utf8.encode('I hereby declare that I am the address owner.'));
+      final message =
+          utf8.encode('I hereby declare that I am the address owner.');
+
+      // Get message hash for Safe - pass messageBytes directly (not preMessage)
+      // to match what Safe will do internally
+      final messageHash = await simpleAccount.getMessageHashForSafe(message);
 
       // Build authorization URL
+      // Sign the messageHash with personal sign and adjust v for eth_sign flow
       final signature = moneriumAuthService.signOwnershipMessage(
         privateKey: key,
         message: messageHash,
       );
+
       print('ADDRESS: ${account.hexEip55}');
       print('KEY ADDRESS: ${key.address.hexEip55}');
+      print('KEY: ${bytesToHex(key.privateKey, include0x: true)}');
       print('SIG RESULT: ${bytesToHex(signature, include0x: true)}');
+      print('v ${signature[64]}');
+
+      // Verify signature against Safe using isValidSignature
+      // Pass keccak256(message) as _dataHash (bytes32)
+      final result =
+          await simpleAccount.isValidSignature(keccak256(message), signature);
+      print('RESULT: ${bytesToHex(result, include0x: true)}');
+
       final authUrl = moneriumAuthService.buildAuthorizationUrl(
         clientId: clientId,
         redirectUri: redirectUri,
