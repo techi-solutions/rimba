@@ -8,34 +8,27 @@ import 'package:go_router/go_router.dart';
 import 'package:pay_app/models/interaction.dart';
 import 'package:pay_app/models/order.dart';
 import 'package:pay_app/models/group.dart';
-import 'package:pay_app/screens/home/contact_list_item.dart';
-import 'package:pay_app/screens/home/profile_list_item.dart';
 import 'package:pay_app/screens/home/profile_modal.dart';
 import 'package:pay_app/screens/home/group_list_item.dart';
+import 'package:pay_app/widgets/groups/group_request_list_item.dart';
 import 'package:pay_app/screens/home/profile_bar.dart';
 import 'package:pay_app/screens/groups/group_detail_modal.dart';
 import 'package:pay_app/services/contacts/contacts.dart';
-import 'package:pay_app/services/preferences/preferences.dart';
 import 'package:pay_app/services/config/config.dart';
 import 'package:pay_app/state/app.dart';
 import 'package:pay_app/state/contacts/contacts.dart';
-import 'package:pay_app/state/contacts/selectors.dart';
 import 'package:pay_app/state/onboarding.dart';
-import 'package:pay_app/state/profile.dart';
 import 'package:pay_app/state/topup.dart';
 import 'package:pay_app/state/transactions/transactions.dart';
 import 'package:pay_app/state/wallet.dart';
 import 'package:pay_app/state/groups/groups.dart';
 import 'package:pay_app/theme/colors.dart';
 import 'package:pay_app/utils/delay.dart';
-import 'package:pay_app/widgets/modals/confirm_modal.dart';
 import 'package:pay_app/widgets/toast/toast.dart';
-import 'package:pay_app/widgets/webview/connected_webview_modal.dart';
 import 'package:pay_app/widgets/modals/topup_coming_soon_modal.dart';
 import 'package:pay_app/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:toastification/toastification.dart';
-import 'package:universal_io/io.dart';
 import 'package:web3dart/web3dart.dart';
 import 'package:pay_app/models/transaction.dart' as tx;
 
@@ -70,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen>
       Debouncer(timerDuration: const Duration(milliseconds: 300));
 
   late AppState _appState;
-  late ProfileState _profileState;
   late OnboardingState _onboardingState;
   late WalletState _walletState;
   late ContactsState _contactsState;
@@ -116,7 +108,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _initState() {
     _appState = context.read<AppState>();
-    _profileState = context.read<ProfileState>();
     _onboardingState = context.read<OnboardingState>();
     _walletState = context.read<WalletState>();
     _contactsState = context.read<ContactsState>();
@@ -141,11 +132,13 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Initialize transactions for the current account
     if (widget.accountAddress.isNotEmpty) {
+      _walletState.startBalancePolling();
       _transactionsState.getTransactions(token: currentTokenAddress);
     }
 
     // Initialize groups
     _groupsState.fetchGroups();
+    _groupsState.fetchGroupRequests();
   }
 
   Future<void> handleRefresh() async {
@@ -154,6 +147,7 @@ class _HomeScreenState extends State<HomeScreen>
     // Refresh transactions and groups
     await _transactionsState.refreshTransactions();
     await _groupsState.fetchGroups();
+    await _groupsState.fetchGroupRequests();
 
     HapticFeedback.heavyImpact();
   }
@@ -200,6 +194,8 @@ class _HomeScreenState extends State<HomeScreen>
 
     _stopInitRetries = true;
 
+    _walletState.stopBalancePolling();
+
     _debouncer.dispose();
 
     _searchFocusNode.removeListener(_searchListener);
@@ -220,35 +216,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _searchListener() async {
     if (_searchFocusNode.hasFocus) {
-      if (Platform.isAndroid) {
-        if (PreferencesService().contactPermission == null) {
-          final confirmed = await showCupertinoModalPopup<bool>(
-            context: context,
-            barrierDismissible: true,
-            barrierColor: blackColor.withAlpha(160),
-            builder: (modalContext) => ConfirmModal(
-              title: AppLocalizations.of(context)!.displayContacts,
-              details: [
-                'This app uses your contact list to help you search for the right person.',
-                'No contact data is sent to our servers.',
-                'We generate the account number on device.',
-              ],
-              cancelText: AppLocalizations.of(context)!.skip,
-              confirmText: AppLocalizations.of(context)!.allow,
-            ),
-          );
-
-          PreferencesService().setContactPermission(confirmed ?? false);
-        }
-
-        final hasPermission = PreferencesService().contactPermission;
-
-        if (hasPermission == true) {
-          _contactsState.fetchContacts();
-        }
-      } else {
-        _contactsState.fetchContacts();
-      }
       setState(() {
         isKeyboardVisible = true;
         isSearching = true;
@@ -518,18 +485,11 @@ class _HomeScreenState extends State<HomeScreen>
 
     await delay(const Duration(milliseconds: 500));
 
-    // _interactionState.clearSearch();
-    // _placesState.clearSearch();
-    _contactsState.clearSearch();
     _groupsState.clearSearch();
   }
 
   void handleSearch(String query) {
-    // _interactionState.startSearching();
     _debouncer.resetDebounce(() {
-      // _interactionState.setSearchQuery(query);
-      // _placesState.setSearchQuery(query);
-      _contactsState.setSearchQuery(query);
       _groupsState.searchGroups(query);
     });
   }
@@ -576,12 +536,17 @@ class _HomeScreenState extends State<HomeScreen>
 
     HapticFeedback.heavyImpact();
 
+    final groupsState = context.read<GroupsState>();
+
     showCupertinoModalPopup(
       context: context,
       barrierDismissible: true,
       useRootNavigator: false,
       barrierColor: blackColor.withAlpha(160),
-      builder: (modalContext) => const GroupDetailModal(),
+      builder: (modalContext) => ChangeNotifierProvider.value(
+        value: groupsState,
+        child: const GroupDetailModal(),
+      ),
     ).then((_) {
       _backgroundColorController.reverse();
       _stopInitRetries = false;
@@ -590,6 +555,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _dismissKeyboard() {
     FocusScope.of(context).unfocus();
+  }
+
+  void _handleAcceptRequest(String requestId) {
+    _groupsState.acceptGroupRequest(requestId);
+  }
+
+  void _handleDeclineRequest(String requestId) {
+    _groupsState.declineGroupRequest(requestId);
   }
 
   @override
@@ -603,11 +576,6 @@ class _HomeScreenState extends State<HomeScreen>
     final safeTopPadding = MediaQuery.of(context).padding.top;
 
     final loading = context.select((WalletState state) => state.loading);
-
-    final contacts = context.select(selectFilteredContacts);
-    final customContact = context.select(selectCustomContact);
-    final customContactProfileByUsername = context
-        .select((ContactsState state) => state.customContactProfileByUsername);
 
     final myAddress =
         context.select((WalletState state) => state.address?.hexEip55);
@@ -624,16 +592,14 @@ class _HomeScreenState extends State<HomeScreen>
     //     context.select((TransactionsState state) => state.loadingMore);
 
     final groups = context.select((GroupsState state) => state.filteredGroups);
+    final groupRequests =
+        context.select((GroupsState state) => state.groupRequests);
     final groupsLoading =
         context.select((GroupsState state) => state.isLoading);
 
     final config = context.select((WalletState state) => state.config);
-    // final currentTokenAddress =
-    //     context.select((AppState state) => state.currentTokenAddress);
-    // final tokenConfig = config.getToken(currentTokenAddress);
 
-    final nothingFound =
-        _searchController.text.isNotEmpty && contacts.isEmpty && groups.isEmpty;
+    final nothingFound = _searchController.text.isNotEmpty && groups.isEmpty;
 
     return AnimatedBuilder(
       animation: _backgroundColorAnimation,
@@ -684,34 +650,54 @@ class _HomeScreenState extends State<HomeScreen>
                         CupertinoSliverRefreshControl(
                           onRefresh: handleRefresh,
                         ),
-                        if (customContact != null)
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              childCount: 1,
-                              (context, index) => ContactListItem(
-                                contact: customContact,
-                                onTap: (contact) =>
-                                    handleInteractionWithContact(
-                                  myAddress,
-                                  contact,
+                        // Group Requests Section
+                        if (groupRequests.isNotEmpty && !isSearching)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: Text(
+                                'Group Requests',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF14023F),
                                 ),
                               ),
                             ),
                           ),
-                        if (customContactProfileByUsername != null)
+                        if (groupRequests.isNotEmpty && !isSearching)
                           SliverList(
                             delegate: SliverChildBuilderDelegate(
-                              childCount: 1,
-                              (context, index) => ProfileListItem(
-                                profile: customContactProfileByUsername,
-                                onTap: (profile) => handleInteractionWithUser(
-                                  myAddress,
-                                  profile.account,
-                                ),
-                              ),
+                              childCount: groupRequests.length,
+                              (context, index) {
+                                final request = groupRequests[index];
+                                return GroupRequestListItem(
+                                  request: request,
+                                  onAccept: (requestId) =>
+                                      _handleAcceptRequest(requestId),
+                                  onDecline: (requestId) =>
+                                      _handleDeclineRequest(requestId),
+                                );
+                              },
                             ),
                           ),
-                        if (groups.isNotEmpty && !isSearching)
+                        // Divider between requests and groups
+                        if (groupRequests.isNotEmpty &&
+                            groups.isNotEmpty &&
+                            !isSearching)
+                          SliverToBoxAdapter(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              height: 1,
+                              color: CupertinoColors.separator,
+                            ),
+                          ),
+                        // Groups list - show in both search and non-search mode
+                        if (groups.isNotEmpty)
                           SliverList(
                             delegate: SliverChildBuilderDelegate(
                               childCount: groups.length,
@@ -724,40 +710,123 @@ class _HomeScreenState extends State<HomeScreen>
                               },
                             ),
                           ),
-                        // SliverList(
-                        //   delegate: SliverChildBuilderDelegate(
-                        //     childCount: places.length,
-                        //     (context, index) => PlaceListItem(
-                        //       place: places[index],
-                        //       onTap: (place) =>
-                        //           handleInteractionWithPlace(
-                        //         myAddress,
-                        //         place.slug,
-                        //       ),
-                        //     ),
-                        //   ),
-                        // ),
-                        if (contacts.isNotEmpty && isSearching)
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              childCount: contacts.length,
-                              (context, index) => ContactListItem(
-                                contact: contacts[index],
-                                onTap: (contact) =>
-                                    handleInteractionWithContact(
-                                  myAddress,
-                                  contact,
+                        if (groupsLoading && groups.isEmpty)
+                          SliverFillRemaining(
+                            child: Center(child: CupertinoActivityIndicator()),
+                          ),
+                        // Empty state when no groups and not searching
+                        if (!groupsLoading &&
+                            groups.isEmpty &&
+                            groupRequests.isEmpty &&
+                            !isSearching)
+                          SliverFillRemaining(
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(32.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      CupertinoIcons.person_2_square_stack,
+                                      size: 80,
+                                      color: CupertinoColors.systemGrey3,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    Text(
+                                      'Start Connecting',
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: CupertinoColors.label,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Create a group to split payments\nwith friends and family',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: CupertinoColors.systemGrey,
+                                        height: 1.4,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 32),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 20, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color: CupertinoColors.systemGrey6,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: const [
+                                              Icon(
+                                                CupertinoIcons.search,
+                                                color:
+                                                    CupertinoColors.activeBlue,
+                                                size: 20,
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'Tap search to find groups',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: CupertinoColors.label,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 20, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color: CupertinoColors.systemGrey6,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: const [
+                                              Icon(
+                                                CupertinoIcons
+                                                    .add_circled_solid,
+                                                color:
+                                                    CupertinoColors.activeBlue,
+                                                size: 20,
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'Tap + to create a group',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: CupertinoColors.label,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                          ),
-                        if (groupsLoading && groups.isEmpty && !isSearching)
-                          SliverFillRemaining(
-                            child: Center(child: CupertinoActivityIndicator()),
-                          ),
-                        if (loading && contacts.isEmpty && isSearching)
-                          SliverFillRemaining(
-                            child: Center(child: CupertinoActivityIndicator()),
                           ),
                         if (nothingFound)
                           SliverToBoxAdapter(

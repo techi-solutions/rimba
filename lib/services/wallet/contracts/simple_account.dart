@@ -11,6 +11,7 @@ class SimpleAccount {
   final String addr;
   late Account contract;
   late DeployedContract rcontract;
+  late DeployedContract ccontract;
 
   // StreamSubscription<TransferSingle>? _sub;
 
@@ -28,7 +29,13 @@ class SimpleAccount {
 
     final cabi = ContractAbi.fromJson(abi, 'Account');
 
+    final compatFallbackHandlerAbi = ContractAbi.fromJson(
+        '[{"inputs":[{"internalType":"address","name":"safe","type":"address"},{"internalType":"bytes","name":"message","type":"bytes"}],"name":"getMessageHashForSafe","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"_dataHash","type":"bytes32"},{"internalType":"bytes","name":"_signature","type":"bytes"}],"name":"isValidSignature","outputs":[{"internalType":"bytes4","name":"","type":"bytes4"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"safe","type":"address"},{"internalType":"bytes","name":"message","type":"bytes"}],"name":"encodeMessageDataForSafe","outputs":[{"internalType":"bytes","name":"","type":"bytes"}],"stateMutability":"view","type":"function"}]',
+        'CompatFallbackHandler');
+
     rcontract = DeployedContract(cabi, EthereumAddress.fromHex(addr));
+    ccontract = DeployedContract(
+        compatFallbackHandlerAbi, EthereumAddress.fromHex(addr));
   }
 
   Future<EthereumAddress> tokenEntryPoint() async {
@@ -76,6 +83,40 @@ class SimpleAccount {
     final function = rcontract.function('transferOwnership');
 
     return function.encodeCall([EthereumAddress.fromHex(newOwner)]);
+  }
+
+  Future<Uint8List> encodeMessageDataForSafe(Uint8List message) async {
+    final function = ccontract.function('encodeMessageDataForSafe');
+
+    final result = await client.call(
+        contract: ccontract,
+        function: function,
+        params: [EthereumAddress.fromHex(addr), message]);
+
+    return result[0];
+  }
+
+  Future<Uint8List> getMessageHashForSafe(Uint8List message) async {
+    final function = ccontract.function('getMessageHashForSafe');
+
+    final result = await client.call(
+        contract: ccontract,
+        function: function,
+        params: [EthereumAddress.fromHex(addr), message]);
+
+    return result[0];
+  }
+
+  Future<Uint8List> isValidSignature(
+      Uint8List data, Uint8List signature) async {
+    // isValidSignature expects (bytes32 _dataHash, bytes calldata _signature)
+    // data should be 32 bytes (bytes32)
+    final function = ccontract.function('isValidSignature');
+
+    final result = await client.call(
+        contract: ccontract, function: function, params: [data, signature]);
+
+    return result[0];
   }
 
   Uint8List upgradeToCallData(String implementation) {

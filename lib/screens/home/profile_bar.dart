@@ -10,7 +10,10 @@ import 'package:pay_app/widgets/blurry_child.dart';
 import 'package:pay_app/widgets/cards/card.dart' as cardWidget;
 import 'package:pay_app/widgets/cards/card_skeleton.dart';
 import 'package:pay_app/widgets/coin_logo.dart';
+import 'package:pay_app/widgets/toast/toast.dart';
+import 'package:pay_app/widgets/webview/connected_webview_modal.dart';
 import 'package:provider/provider.dart';
+import 'package:toastification/toastification.dart';
 
 class ProfileBar extends StatefulWidget {
   final String? selectedAddress;
@@ -62,6 +65,57 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
     navigator.push('/my-account/settings');
   }
 
+  Future<void> handleMoneriumConnect() async {
+    HapticFeedback.mediumImpact();
+
+    final walletState = context.read<WalletState>();
+
+    try {
+      // Build auth URL with PKCE (handled in wallet state)
+      final authData = await walletState.buildMoneriumAuthUrl();
+      final authUrl = authData['authUrl']!;
+      final redirectUrl = authData['redirectUri']!;
+      print('authUrl: $authUrl');
+      print('redirectUrl: $redirectUrl');
+
+      if (!mounted) {
+        return;
+      }
+
+      final path = await showCupertinoModalPopup<String?>(
+        context: context,
+        barrierDismissible: true,
+        useRootNavigator: false,
+        barrierColor: blackColor.withAlpha(160),
+        builder: (modalContext) {
+          return ConnectedWebViewModal(
+            modalKey: 'monerium-connect',
+            url: authUrl,
+            redirectUrl: redirectUrl,
+          );
+        },
+      );
+
+      if (path == null || !mounted) {
+        return;
+      }
+
+      // display success toast
+      toastification.showCustom(
+        context: context,
+        autoCloseDuration: const Duration(seconds: 5),
+        alignment: Alignment.bottomCenter,
+        builder: (context, toast) => Toast(
+          icon: const Text('🚀'),
+          title: Text('Monerium connected successfully'),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error starting Monerium connect: $e');
+      // TODO: Show error to user
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokenConfig = context.select<AppState, TokenConfig>(
@@ -95,6 +149,7 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
   ) {
     final safeArea = MediaQuery.of(context).padding;
     final width = MediaQuery.of(context).size.width;
+    final height = MediaQuery.of(context).size.height;
     final adjustedWidth = widget.small ? width * 0.8 : width;
 
     final primaryColor = context.select<AppState, Color>(
@@ -103,12 +158,16 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
 
     final appProfile = context.watch<ProfileState>().appProfile;
 
-    double cardWidth = (adjustedWidth < 360 ? 360 : adjustedWidth) * 0.8;
+    double cardWidth = adjustedWidth * 0.8;
+
+    double containerHeight = widget.small
+        ? (height * 0.35).clamp(240.0, 280.0)
+        : (height * 0.4).clamp(280.0, 320.0);
 
     return BlurryChild(
       child: Container(
         width: width,
-        height: widget.small ? 280 : 320,
+        height: containerHeight,
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -127,7 +186,7 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
               ),
             if (!appProfile.isAnonymous)
               SizedBox(
-                height: widget.small ? 220 : 260,
+                height: containerHeight - safeArea.top - 20,
                 width: width,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -142,9 +201,8 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
                       profile: appProfile,
                       usernamePrefix: '@',
                       icon: CupertinoIcons.device_phone_portrait,
-                      onTopUpPressed: !widget.loading && topUpPlugin != null
-                          ? () => widget.onTopUpTap(topUpPlugin.url)
-                          : null,
+                      onTopUpPressed:
+                          !widget.loading ? handleMoneriumConnect : null,
                       onCardNameTapped: handleEditProfile,
                       onCardPressed: null,
                       onCardBalanceTapped: null,

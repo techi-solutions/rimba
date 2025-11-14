@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:pay_app/models/place.dart';
 import 'package:pay_app/services/db/db.dart';
 import 'package:pay_app/services/wallet/contracts/profile.dart';
-import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 enum ContactType {
@@ -144,5 +143,18 @@ class ContactsTable extends DBTable {
       contact.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  // Search contacts by username, name, or account address
+  Future<List<DBContact>> search(String query) async {
+    final searchQuery = query.toLowerCase();
+    
+    final List<Map<String, dynamic>> maps = await db.query(
+      name,
+      where: 'LOWER(username) LIKE ? OR LOWER(name) LIKE ? OR LOWER(account) LIKE ?',
+      whereArgs: ['%$searchQuery%', '%$searchQuery%', '%$searchQuery%'],
+    );
+
+    return List.generate(maps.length, (i) => DBContact.fromMap(maps[i]));
   }
 }

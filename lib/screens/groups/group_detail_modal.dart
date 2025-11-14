@@ -2,7 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:pay_app/models/group.dart';
+import 'package:pay_app/models/group_extensions.dart';
 import 'package:pay_app/state/groups/groups.dart';
+import 'package:pay_app/state/contacts/contacts.dart';
+import 'package:pay_app/screens/group/add_member_modal.dart';
 
 class GroupDetailModal extends StatefulWidget {
   final Group? group; // null for create, Group for edit/view
@@ -20,7 +23,8 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
-  final List<String> _memberAccounts = [];
+  final List<String> _memberIds = [];
+  final Map<String, String?> _memberNames = {};
 
   bool _isEditing = false;
   bool _isLoading = false;
@@ -78,6 +82,13 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
                       const SizedBox(height: 24),
                       _buildCreateButton(),
                     ],
+                    if (!isCreateMode &&
+                        widget.group!.isCreator(context
+                            .read<GroupsState>()
+                            .userAccountAddress)) ...[
+                      const SizedBox(height: 32),
+                      _buildDeleteButton(),
+                    ],
                   ],
                 ),
               ),
@@ -87,6 +98,12 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
 
   Widget _buildTrailingButton() {
     if (widget.group == null) return const SizedBox.shrink();
+
+    // Only show edit button if user is the creator
+    final groupsState = context.read<GroupsState>();
+    if (!widget.group!.isCreator(groupsState.userAccountAddress)) {
+      return const SizedBox.shrink();
+    }
 
     return CupertinoButton(
       padding: EdgeInsets.zero,
@@ -173,47 +190,58 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
           ],
         ),
         const SizedBox(height: 16),
-        Consumer<GroupsState>(
-          builder: (context, groupsState, child) {
-            if (widget.group != null && !_isEditing) {
-              // Show members from state
-              final members = groupsState.currentGroupMembers;
-              if (members.isEmpty) {
-                return const Text('No members found');
-              }
-
-              return Column(
-                children: members
-                    .map((member) => _buildMemberItem(
-                          member.contactAccount,
-                          onRemove: null, // Can't remove in view mode
-                        ))
-                    .toList(),
-              );
-            } else {
-              // Show members from local list (create/edit mode)
-              if (_memberAccounts.isEmpty) {
-                return const Text('No members added yet');
-              }
-
-              return Column(
-                children: _memberAccounts.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final account = entry.value;
-                  return _buildMemberItem(
-                    account,
-                    onRemove: () => _removeMember(index),
-                  );
-                }).toList(),
-              );
-            }
-          },
-        ),
+        _buildMembersContent(),
       ],
     );
   }
 
+  Widget _buildMembersContent() {
+    try {
+      final groupsState = Provider.of<GroupsState>(context, listen: false);
+
+      if (widget.group != null && !_isEditing) {
+        final members = groupsState.currentGroupMembers;
+        if (members.isEmpty) {
+          return const Text('No members found');
+        }
+
+        // Store member names for view mode
+        for (final member in members) {
+          _memberNames[member.contactAccount] = member.memberName;
+        }
+
+        return Column(
+          children: members
+              .map((member) => _buildMemberItem(
+                    member.contactAccount,
+                    onRemove: null,
+                  ))
+              .toList(),
+        );
+      }
+    } catch (e) {}
+
+    if (_memberIds.isEmpty) {
+      return const Text('No members added yet');
+    }
+
+    return Column(
+      children: _memberIds.asMap().entries.map((entry) {
+        final index = entry.key;
+        final account = entry.value;
+        return _buildMemberItem(
+          account,
+          onRemove: () => _removeMember(index),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildMemberItem(String account, {VoidCallback? onRemove}) {
+    final displayName = _memberNames[account];
+    final displayText = displayName ??
+        '${account.substring(0, 6)}...${account.substring(account.length - 4)}';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -224,9 +252,27 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              account,
-              style: const TextStyle(fontSize: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayText,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (displayName != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '${account.substring(0, 6)}...${account.substring(account.length - 4)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           if (onRemove != null)
@@ -254,6 +300,34 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
     );
   }
 
+  Widget _buildDeleteButton() {
+    return Column(
+      children: [
+        Container(
+          height: 1,
+          color: CupertinoColors.separator,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: CupertinoButton(
+            color: CupertinoColors.systemRed,
+            onPressed: _deleteGroup,
+            child: const Text(
+              'Delete Group',
+              style: TextStyle(
+                color: CupertinoColors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
   void _toggleEditMode() {
     setState(() {
       _isEditing = !_isEditing;
@@ -270,47 +344,58 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
 
   void _loadMembersForEditing() {
     if (widget.group != null) {
-      final groupsState = context.read<GroupsState>();
-      groupsState.selectGroup(widget.group!.id).then((_) {
-        setState(() {
-          _memberAccounts.clear();
-          _memberAccounts.addAll(
-            groupsState.currentGroupMembers
-                .map((member) => member.contactAccount)
-                .toList(),
-          );
+      try {
+        final groupsState = context.read<GroupsState>();
+        groupsState.selectGroup(widget.group!.id).then((_) {
+          setState(() {
+            _memberIds.clear();
+            _memberNames.clear();
+            for (final member in groupsState.currentGroupMembers) {
+              _memberIds.add(member.contactAccount);
+              _memberNames[member.contactAccount] = member.memberName;
+            }
+          });
         });
-      });
+      } catch (e) {
+        setState(() {
+          _memberIds.clear();
+          _memberNames.clear();
+        });
+      }
     }
   }
 
   void _addMember() {
-    showCupertinoDialog(
+    // Get the ContactsState from the current context before showing the modal
+    final contactsState = context.read<ContactsState>();
+
+    showCupertinoModalPopup(
       context: context,
-      builder: (context) => _AddMemberDialog(
-        onAdd: (account) {
-          setState(() {
-            _memberAccounts.add(account);
-          });
-        },
+      builder: (modalContext) => ChangeNotifierProvider<ContactsState>.value(
+        value: contactsState,
+        child: AddMemberModal(
+          onAdd: (accountOrUsername, displayName) {
+            setState(() {
+              _memberIds.add(accountOrUsername);
+              _memberNames[accountOrUsername] = displayName;
+            });
+          },
+        ),
       ),
     );
   }
 
   void _removeMember(int index) {
     setState(() {
-      _memberAccounts.removeAt(index);
+      final account = _memberIds[index];
+      _memberIds.removeAt(index);
+      _memberNames.remove(account);
     });
   }
 
   void _createGroup() async {
     if (_nameController.text.isEmpty || _amountController.text.isEmpty) {
       _showError('Please fill in all required fields');
-      return;
-    }
-
-    if (_memberAccounts.isEmpty) {
-      _showError('Please add at least one member');
       return;
     }
 
@@ -325,7 +410,7 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
           ? null
           : _descriptionController.text,
       amount: _amountController.text,
-      memberAccounts: _memberAccounts,
+      memberIds: _memberIds,
     );
 
     setState(() {
@@ -340,7 +425,7 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
     }
   }
 
-  void _updateGroup() async {
+  Future<void> _updateGroup() async {
     if (_nameController.text.isEmpty || _amountController.text.isEmpty) {
       _showError('Please fill in all required fields');
       return;
@@ -350,49 +435,68 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
       _isLoading = true;
     });
 
-    final groupsState = context.read<GroupsState>();
-    final success = await groupsState.updateGroup(
-      id: widget.group!.id,
-      name: _nameController.text,
-      description: _descriptionController.text.isEmpty
-          ? null
-          : _descriptionController.text,
-      amount: _amountController.text,
-    );
+    try {
+      final groupsState = context.read<GroupsState>();
 
-    setState(() {
-      _isLoading = false;
-    });
+      final success = await groupsState.updateGroup(
+        id: widget.group!.id,
+        name: _nameController.text,
+        description: _descriptionController.text.isEmpty
+            ? null
+            : _descriptionController.text,
+        amount: _amountController.text,
+      );
 
-    if (success != null && mounted) {
-      HapticFeedback.lightImpact();
-      // Update members if they changed
-      await _updateMembers();
-    } else if (mounted) {
-      _showError('Failed to update group');
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (success != null && mounted) {
+        HapticFeedback.lightImpact();
+        // Update members if they changed
+        await _updateMembers();
+      } else if (mounted) {
+        _showError('Failed to update group');
+      }
+    } catch (e) {
+      debugPrint('Error updating group: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        _showError('Failed to update group. Please try again.');
+      }
     }
   }
 
   Future<void> _updateMembers() async {
     if (widget.group == null) return;
 
-    final groupsState = context.read<GroupsState>();
-    final currentMembers = groupsState.currentGroupMembers
-        .map((member) => member.contactAccount)
-        .toList();
+    try {
+      final groupsState = context.read<GroupsState>();
+      final currentMembers = groupsState.currentGroupMembers
+          .map((member) => member.contactAccount)
+          .toList();
 
-    // Remove members that are no longer in the list
-    for (final member in currentMembers) {
-      if (!_memberAccounts.contains(member)) {
-        await groupsState.removeGroupMember(member);
+      // Remove members that are no longer in the list
+      for (final member in currentMembers) {
+        if (!_memberIds.contains(member)) {
+          await groupsState.removeGroupMember(member);
+        }
       }
-    }
 
-    // Add new members
-    for (final account in _memberAccounts) {
-      if (!currentMembers.contains(account)) {
-        await groupsState.addGroupMember(account);
+      // Send requests to new members
+      for (final memberId in _memberIds) {
+        if (!currentMembers.contains(memberId)) {
+          try {
+            await groupsState.sendGroupRequest(memberId);
+          } catch (e) {
+            debugPrint('Failed to send request to $memberId: $e');
+          }
+        }
       }
+    } catch (e) {
+      debugPrint('Error updating members: $e');
     }
   }
 
@@ -411,50 +515,67 @@ class _GroupDetailModalState extends State<GroupDetailModal> {
       ),
     );
   }
-}
 
-class _AddMemberDialog extends StatefulWidget {
-  final Function(String) onAdd;
+  void _deleteGroup() async {
+    if (widget.group == null) return;
 
-  const _AddMemberDialog({required this.onAdd});
-
-  @override
-  State<_AddMemberDialog> createState() => _AddMemberDialogState();
-}
-
-class _AddMemberDialogState extends State<_AddMemberDialog> {
-  final TextEditingController _accountController = TextEditingController();
-
-  @override
-  void dispose() {
-    _accountController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoAlertDialog(
-      title: const Text('Add Member'),
-      content: CupertinoTextField(
-        controller: _accountController,
-        placeholder: 'Enter account address',
-        autofocus: true,
+    // Show confirmation dialog
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Delete Group'),
+        content: Text(
+          'Are you sure you want to delete "${widget.group!.name}"? This action cannot be undone.',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            child: const Text('Delete'),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
       ),
-      actions: [
-        CupertinoDialogAction(
-          child: const Text('Cancel'),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        CupertinoDialogAction(
-          child: const Text('Add'),
-          onPressed: () {
-            if (_accountController.text.isNotEmpty) {
-              widget.onAdd(_accountController.text);
-              Navigator.of(context).pop();
-            }
-          },
-        ),
-      ],
     );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final groupsState = context.read<GroupsState>();
+    final success = await groupsState.deleteGroup(widget.group!.id);
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (mounted) {
+      if (success) {
+        HapticFeedback.lightImpact();
+        // Close the modal
+        Navigator.of(context).pop();
+        // Show success message
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Success'),
+            content: Text('${widget.group!.name} has been deleted'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('OK'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        );
+      } else {
+        _showError('Failed to delete group. Please try again.');
+      }
+    }
   }
 }

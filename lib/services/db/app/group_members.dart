@@ -1,6 +1,7 @@
 import 'package:pay_app/models/group_member.dart';
 import 'package:pay_app/services/db/db.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:flutter/foundation.dart';
 
 class GroupMembersTable extends DBTable {
   GroupMembersTable(super.db);
@@ -13,6 +14,10 @@ class GroupMembersTable extends DBTable {
     CREATE TABLE $name (
       group_id TEXT NOT NULL,
       contact_account TEXT NOT NULL,
+      member_name TEXT,
+      contribution_amount TEXT NOT NULL DEFAULT '0.00',
+      payout_position INTEGER NOT NULL DEFAULT 0,
+      is_ready INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       PRIMARY KEY (group_id, contact_account),
       FOREIGN KEY (group_id) REFERENCES t_groups(id) ON DELETE CASCADE,
@@ -31,11 +36,48 @@ class GroupMembersTable extends DBTable {
     await db.execute('''
       CREATE INDEX idx_${name}_contact ON $name (contact_account)
     ''');
+    await db.execute('''
+      CREATE INDEX idx_${name}_payout_position ON $name (group_id, payout_position)
+    ''');
   }
 
   @override
   Future<void> migrate(Database db, int oldVersion, int newVersion) async {
-    // No migrations needed for version 1
+    if (oldVersion < 3 && newVersion >= 3) {
+      // Add member_name and contribution_amount columns if they don't exist
+      try {
+        await db.execute('ALTER TABLE $name ADD COLUMN member_name TEXT');
+      } catch (e) {
+        // Column already exists, ignore error
+      }
+
+      try {
+        await db.execute(
+            'ALTER TABLE $name ADD COLUMN contribution_amount TEXT NOT NULL DEFAULT \'0.00\'');
+      } catch (e) {
+        // Column already exists, ignore error
+      }
+    }
+
+    if (oldVersion < 4 && newVersion >= 4) {
+      // Add payout_position column if it doesn't exist
+      try {
+        await db.execute(
+            'ALTER TABLE $name ADD COLUMN payout_position INTEGER NOT NULL DEFAULT 0');
+      } catch (e) {
+        // Column already exists, ignore error
+      }
+    }
+
+    if (oldVersion < 5 && newVersion >= 5) {
+      // Add is_ready column if it doesn't exist
+      try {
+        await db.execute(
+            'ALTER TABLE $name ADD COLUMN is_ready INTEGER NOT NULL DEFAULT 0');
+      } catch (e) {
+        // Column already exists, ignore error
+      }
+    }
   }
 
   // Fetch all members of a group
@@ -44,7 +86,7 @@ class GroupMembersTable extends DBTable {
       name,
       where: 'group_id = ?',
       whereArgs: [groupId],
-      orderBy: 'created_at ASC',
+      orderBy: 'payout_position ASC',
     );
     return List.generate(maps.length, (i) => GroupMember.fromMap(maps[i]));
   }
@@ -72,11 +114,42 @@ class GroupMembersTable extends DBTable {
 
   // Add member to group
   Future<void> addMember(GroupMember member) async {
+    // First ensure the contact exists in t_contacts
+    await _ensureContactExists(member.contactAccount, member.memberName);
+
     await db.insert(
       name,
       member.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  // Ensure contact exists in t_contacts table
+  Future<void> _ensureContactExists(
+      String contactAccount, String? memberName) async {
+    // Check if contact already exists
+    final existingContact = await db.query(
+      't_contacts',
+      where: 'account = ?',
+      whereArgs: [contactAccount],
+    );
+
+    if (existingContact.isEmpty) {
+      // Create a basic contact entry
+      await db.insert(
+        't_contacts',
+        {
+          'account': contactAccount,
+          'username': memberName ?? 'Unknown User',
+          'name': memberName ?? 'Unknown User',
+          'type': 'user',
+          'profile': null,
+          'place': null,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      debugPrint('DB: Created contact entry for $contactAccount');
+    }
   }
 
   // Remove member from group
@@ -104,5 +177,71 @@ class GroupMembersTable extends DBTable {
       [groupId],
     );
     return result.first['count'] as int;
+  }
+
+  // Get the next available payout position for a group
+  Future<int> getNextPayoutPosition(String groupId) async {
+    final result = await db.rawQuery(
+      'SELECT MAX(payout_position) as max_position FROM $name WHERE group_id = ?',
+      [groupId],
+    );
+
+    final maxPosition = result.first['max_position'];
+    if (maxPosition == null) {
+      return 0; // First member gets position 0
+    }
+    return (maxPosition as int) + 1;
+  }
+
+  // Update the payout position of a member
+  Future<void> updatePayoutPosition(
+    String groupId,
+    String contactAccount,
+    int newPosition,
+  ) async {
+    await db.update(
+      name,
+      {'payout_position': newPosition},
+      where: 'group_id = ? AND contact_account = ?',
+      whereArgs: [groupId, contactAccount],
+    );
+  }
+
+  // Batch update payout positions within a single transaction
+  Future<void> updatePayoutPositionsBatch(
+    String groupId,
+    List<GroupMember> orderedMembers,
+  ) async {
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (int i = 0; i < orderedMembers.length; i++) {
+        final member = orderedMembers[i];
+        batch.update(
+          name,
+          {'payout_position': i},
+          where: 'group_id = ? AND contact_account = ?',
+          whereArgs: [groupId, member.contactAccount],
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+    debugPrint(
+        'DB: Batch updated ${orderedMembers.length} payout positions for group $groupId');
+  }
+
+  // Update the isReady status of a member
+  Future<void> updateReadyStatus(
+    String groupId,
+    String contactAccount,
+    bool isReady,
+  ) async {
+    await db.update(
+      name,
+      {'is_ready': isReady ? 1 : 0},
+      where: 'group_id = ? AND contact_account = ?',
+      whereArgs: [groupId, contactAccount],
+    );
+    debugPrint(
+        'DB: Updated isReady status for $contactAccount in group $groupId to $isReady');
   }
 }

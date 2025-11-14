@@ -19,7 +19,7 @@ class ConnectedWebViewModal extends StatefulWidget {
     this.modalKey,
     required this.url,
     required this.redirectUrl,
-  })  : closeUrl = '$redirectUrl/close',
+  })  : closeUrl = '$redirectUrl/?code=',
         pluginUrl = '$redirectUrl/#/?dl=plugin';
 
   @override
@@ -74,9 +74,10 @@ class _WebViewModalState extends State<ConnectedWebViewModal> {
   Future<NavigationActionPolicy?> shouldOverrideUrlLoading(
       InAppWebViewController controller, NavigationAction action) async {
     final uri = Uri.parse(action.request.url.toString());
+    print('uri: ${uri.toString()}');
 
     if (uri.scheme != 'http' && uri.scheme != 'https') {
-      launchUrl(uri);
+      // launchUrl(uri);
 
       return NavigationActionPolicy.CANCEL;
     }

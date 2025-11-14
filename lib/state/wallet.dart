@@ -1,16 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:pay_app/services/config/config.dart';
 import 'package:pay_app/services/preferences/preferences.dart';
 import 'package:pay_app/services/secure/secure.dart';
 import 'package:pay_app/services/wallet/wallet.dart';
+import 'package:pay_app/services/monerium/monerium_auth_service.dart';
 import 'package:pay_app/utils/currency.dart';
+import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 
 class WalletState with ChangeNotifier {
   final PreferencesService _preferencesService = PreferencesService();
   final SecureService _secureService = SecureService();
+  final MoneriumAuthService moneriumAuthService = MoneriumAuthService();
 
   final Config _config;
   Config get config => _config;
@@ -33,6 +38,9 @@ class WalletState with ChangeNotifier {
 
   Timer? _pollingTimer;
   bool _mounted = true;
+
+  // Monerium auth state
+  String? _moneriumCodeVerifier;
   void safeNotifyListeners() {
     if (_mounted) {
       notifyListeners();
@@ -126,7 +134,17 @@ class WalletState with ChangeNotifier {
   }
 
   Future<void> updateBalance() async {
-    tokenBalances = _preferencesService.tokenBalances(_address!.hexEip55);
+    final credentials = _secureService.getCredentials();
+
+    EthereumAddress? keyAddress;
+
+    if (credentials != null) {
+      keyAddress = credentials.$2.address;
+    }
+    print('KEY ADDRESS: ${keyAddress?.hexEip55}');
+
+    tokenBalances = _preferencesService
+        .tokenBalances(keyAddress?.hexEip55 ?? _address!.hexEip55);
     safeNotifyListeners();
 
     final tokenConfig = config.getToken(
@@ -135,7 +153,7 @@ class WalletState with ChangeNotifier {
 
     final balance = await getBalance(
       _config,
-      _address!,
+      keyAddress ?? _address!,
       tokenAddress: tokenConfig.address,
     );
 
@@ -146,7 +164,7 @@ class WalletState with ChangeNotifier {
     safeNotifyListeners();
 
     await _preferencesService.setTokenBalances(
-        _address!.hexEip55, tokenBalances);
+        keyAddress?.hexEip55 ?? _address!.hexEip55, tokenBalances);
   }
 
   Future<void> loadTokenBalances() async {
@@ -167,12 +185,21 @@ class WalletState with ChangeNotifier {
 
       final balances = <String, String>{};
 
+      final credentials = _secureService.getCredentials();
+
+      EthereumAddress? keyAddress;
+
+      if (credentials != null) {
+        keyAddress = credentials.$2.address;
+      }
+      print('KEY ADDRESS: ${keyAddress?.hexEip55}');
+
       for (final tokenEntry in _config.tokens.entries) {
         final tokenAddress = tokenEntry.value.address;
         try {
           final balance = await getBalance(
             _config,
-            _address!,
+            keyAddress ?? _address!,
             tokenAddress: tokenAddress,
           );
 
@@ -191,7 +218,7 @@ class WalletState with ChangeNotifier {
       safeNotifyListeners();
 
       await _preferencesService.setTokenBalances(
-        _address!.hexEip55,
+        keyAddress?.hexEip55 ?? _address!.hexEip55,
         tokenBalances,
       );
     } catch (e) {
@@ -213,13 +240,22 @@ class WalletState with ChangeNotifier {
 
       final balances = <String, String>{};
 
+      final credentials = _secureService.getCredentials();
+
+      EthereumAddress? keyAddress;
+
+      if (credentials != null) {
+        keyAddress = credentials.$2.address;
+      }
+      print('KEY ADDRESS: ${keyAddress?.hexEip55}');
+
       for (final tokenEntry in _config.tokens.entries) {
         final tokenKey = tokenEntry.key;
         final tokenAddress = tokenEntry.value.address;
         try {
           final balance = await getBalance(
             _config,
-            _address!,
+            keyAddress ?? _address!,
             tokenAddress: tokenAddress,
           );
           balances[tokenAddress] = formatCurrency(
@@ -234,7 +270,7 @@ class WalletState with ChangeNotifier {
 
       tokenBalances = balances;
       await _preferencesService.setTokenBalances(
-        _address!.hexEip55,
+        keyAddress?.hexEip55 ?? _address!.hexEip55,
         tokenBalances,
       );
       safeNotifyListeners();
@@ -260,5 +296,138 @@ class WalletState with ChangeNotifier {
     tokenBalances = {};
     _preferencesService.setToken(null);
     safeNotifyListeners();
+  }
+
+  /// Generates PKCE values and builds the Monerium authorization URL
+  /// Returns a map with 'authUrl' and 'redirectUri' keys
+  Future<Map<String, String>> buildMoneriumAuthUrl() async {
+    try {
+      final clientId = dotenv.env['MONERIUM_CLIENT_ID'];
+      final redirectUri =
+          dotenv.env['MONERIUM_REDIRECT_URI'] ?? 'rimba://monerium';
+
+      if (clientId == null || clientId.isEmpty) {
+        throw Exception('MONERIUM_CLIENT_ID not configured');
+      }
+
+      // Generate PKCE values
+      _moneriumCodeVerifier = moneriumAuthService.generateCodeVerifier();
+      final codeChallenge =
+          moneriumAuthService.generateCodeChallenge(_moneriumCodeVerifier!);
+
+      final credentials = _secureService.getCredentials();
+
+      if (credentials == null) {
+        throw Exception('Credentials not found');
+      }
+
+      final (account, key) = credentials;
+
+      final simpleAccount = await _config.getSimpleAccount(account.hexEip55);
+
+      // The message to sign
+      const message = 'I hereby declare that I am the address owner.';
+      final messageBytes = utf8.encode(message);
+
+      // Get message hash for Safe - this is what Safe will check against
+      // Pass messageBytes directly (not preMessage) to match what Safe will do internally
+      final messageHash =
+          await simpleAccount.getMessageHashForSafe(messageBytes);
+
+      // Try different hashes to sign with personal sign (like Safe SDK does)
+      // Safe SDK: hashSafeMessage(message.data) = keccak256(message.data)
+      // Then gets safeMessageHash and signs it
+      final hashOfMessage = keccak256(messageBytes);
+
+      // For the updated isValidSignature(bytes32, bytes), the flow is:
+      // 1. Updated function receives _dataHash (bytes32) - we'll pass hashOfMessage
+      // 2. Calls legacy with abi.encode(_dataHash) - this is just the 32 bytes of hashOfMessage
+      // 3. Legacy does encodeMessageDataForSafe(safe, abi.encode(_dataHash))
+      // 4. Then hashes: keccak256(encodeMessageDataForSafe(safe, abi.encode(_dataHash)))
+      // 5. Checks signature against that hash
+      //
+      // So we need to compute: keccak256(encodeMessageDataForSafe(safe, hashOfMessage))
+      // where hashOfMessage is treated as 32 bytes (which it already is)
+      // Let's compute the encoded message data for Safe with hashOfMessage
+      final encodedHashForSafe =
+          await simpleAccount.encodeMessageDataForSafe(hashOfMessage);
+      final hashThatSafeWillCheck = keccak256(encodedHashForSafe);
+
+      // Sign the hash that Safe will actually check
+      final signature = moneriumAuthService.signOwnershipMessage(
+        privateKey: key,
+        // message: hashThatSafeWillCheck,
+      );
+
+      print('ADDRESS: ${account.hexEip55}');
+      print('KEY ADDRESS: ${key.address.hexEip55}');
+      print('KEY: ${bytesToHex(key.privateKey, include0x: true)}');
+      print('SIG RESULT: ${bytesToHex(signature, include0x: true)}');
+      print('v ${signature[64]}');
+
+      // Verify signature against Safe using isValidSignature
+      // Pass hashOfMessage (keccak256(message)) as _dataHash (bytes32)
+      try {
+        final result =
+            await simpleAccount.isValidSignature(hashOfMessage, signature);
+        print('RESULT: ${bytesToHex(result, include0x: true)}');
+      } catch (e) {
+        debugPrint('Error verifying signature: $e');
+      }
+
+      final authUrl = moneriumAuthService.buildAuthorizationUrl(
+        clientId: clientId,
+        redirectUri: redirectUri,
+        codeChallenge: codeChallenge,
+        // address: account.hexEip55,
+        address: key.address.hexEip55,
+        signature: bytesToHex(signature, include0x: true),
+      );
+
+      return {
+        'authUrl': authUrl,
+        'redirectUri': redirectUri,
+      };
+    } catch (e, s) {
+      debugPrint('Error building Monerium auth URL: $e');
+      debugPrint('Stack trace: $s');
+      rethrow;
+    }
+  }
+
+  /// Exchanges the authorization code for an access token
+  /// [authorizationCode] - The code received from the OAuth redirect
+  Future<Map<String, dynamic>> exchangeMoneriumCode(
+      String authorizationCode) async {
+    try {
+      if (_moneriumCodeVerifier == null) {
+        throw Exception(
+            'Code verifier not found. Please start auth flow again.');
+      }
+
+      final clientId = dotenv.env['MONERIUM_CLIENT_ID'];
+      final redirectUri =
+          dotenv.env['MONERIUM_REDIRECT_URI'] ?? 'rimba://monerium';
+
+      if (clientId == null || clientId.isEmpty) {
+        throw Exception('MONERIUM_CLIENT_ID not configured');
+      }
+
+      final tokenResponse = await moneriumAuthService.exchangeCodeForToken(
+        authorizationCode: authorizationCode,
+        codeVerifier: _moneriumCodeVerifier!,
+        clientId: clientId,
+        redirectUri: redirectUri,
+      );
+
+      // Clear the code verifier after successful exchange
+      _moneriumCodeVerifier = null;
+
+      return tokenResponse;
+    } catch (e, s) {
+      debugPrint('Error exchanging Monerium code: $e');
+      debugPrint('Stack trace: $s');
+      rethrow;
+    }
   }
 }

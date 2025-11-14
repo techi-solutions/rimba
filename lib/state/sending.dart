@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/cupertino.dart';
 import 'package:pay_app/models/checkout.dart';
 import 'package:pay_app/models/checkout_item.dart';
@@ -366,7 +364,7 @@ class SendingState with ChangeNotifier {
           parsedAmount,
         );
 
-        final (_, userOp) = await prepareUserop(
+        final (hash, userOp) = await prepareUserop(
           _config,
           account,
           key,
@@ -411,7 +409,7 @@ class SendingState with ChangeNotifier {
         if (order != null && place != null) {
           final newOrder = await _ordersService.confirmOrder(
             sigAuthConnection,
-            place!.place.id,
+            place.place.id,
             order!.id,
             txHash,
           );

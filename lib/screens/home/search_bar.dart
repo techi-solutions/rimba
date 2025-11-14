@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:pay_app/l10n/app_localizations.dart';
 import 'package:pay_app/widgets/search_bar.dart';
 
 class SearchBar extends StatelessWidget {
@@ -20,8 +19,12 @@ class SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    final double searchBarHeight = (screenHeight * 0.08).clamp(50.0, 64.0);
+
     return Container(
-      height: 57,
+      height: searchBarHeight,
       decoration: BoxDecoration(
         color: backgroundColor ?? CupertinoColors.systemBackground,
       ),
@@ -29,7 +32,7 @@ class SearchBar extends StatelessWidget {
       child: CustomSearchBar(
         controller: controller,
         focusNode: focusNode,
-        placeholder: AppLocalizations.of(context)!.searchForPeopleOrPlaces,
+        placeholder: 'Search for groups',
         onChanged: onSearch,
         isFocused: isFocused,
       ),

@@ -121,6 +121,9 @@ class ProfileState with ChangeNotifier {
       getProfile(_config, _account).then((remoteProfile) {
         if (remoteProfile != null) {
           _profile = remoteProfile;
+          if (_account == appAccount.hexEip55) {
+            appProfile = remoteProfile;
+          }
           safeNotifyListeners();
 
           _contacts.upsert(DBContact.fromProfile(remoteProfile));
@@ -135,6 +138,9 @@ class ProfileState with ChangeNotifier {
     }
 
     _profile = remoteProfile;
+    if (_account == appAccount.hexEip55) {
+      appProfile = remoteProfile;
+    }
     loading = false;
     safeNotifyListeners();
 
@@ -251,6 +257,7 @@ class ProfileState with ChangeNotifier {
       }
 
       _profile = newProfile;
+      appProfile = newProfile;
       safeNotifyListeners();
 
       _contacts.upsert(DBContact.fromProfile(newProfile));
@@ -452,6 +459,7 @@ class ProfileState with ChangeNotifier {
       }
 
       _profile = newProfile;
+      appProfile = newProfile;
       _contacts.upsert(DBContact.fromProfile(newProfile));
 
       checkForChanges();

@@ -175,10 +175,15 @@ class ScannerModalState extends State<ScannerModal>
   Widget build(BuildContext context) {
     final height = MediaQuery.of(context).size.height;
     final width = MediaQuery.of(context).size.width;
+    final safeArea = MediaQuery.of(context).padding;
 
-    final size = (height > width ? width : height) - 40;
+    final double scannerMargin =
+        ((height > width ? width : height) * 0.08).clamp(30.0, 50.0);
+    final size = (height > width ? width : height) - scannerMargin;
 
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final double defaultBottomPosition =
+        (height * 0.12).clamp(80.0, 120.0) + safeArea.bottom;
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -311,7 +316,9 @@ class ScannerModalState extends State<ScannerModal>
                   ),
                   if (widget.confirm)
                     Positioned(
-                      bottom: bottomInset <= 100 ? 100 : bottomInset,
+                      bottom: bottomInset <= defaultBottomPosition
+                          ? defaultBottomPosition
+                          : bottomInset,
                       child: Container(
                         height: 50,
                         width: width - 40,

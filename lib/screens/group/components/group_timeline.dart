@@ -5,7 +5,7 @@ import 'package:pay_app/models/group.dart';
 import 'package:pay_app/models/group_member.dart';
 import 'package:pay_app/state/groups/groups.dart';
 import 'package:pay_app/theme/colors.dart';
-
+import 'package:pay_app/utils/payment_calc.dart';
 
 /// Shows monthly progress, recipients, and payment status
 class GroupTimeline extends StatelessWidget {
@@ -20,9 +20,83 @@ class GroupTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<GroupsState>(
       builder: (context, groupsState, child) {
-        final members = groupsState.currentGroupMembers;
+        final members = [...groupsState.currentGroupMembers]
+          ..sort((a, b) => a.payoutPosition.compareTo(b.payoutPosition));
+
+        // Show empty state if no members yet
+        if (members.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    CupertinoIcons.person_2,
+                    size: 48,
+                    color: CupertinoColors.systemGrey,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No members yet',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add members to see the timeline',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: CupertinoColors.systemGrey2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (members.length == 1) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    CupertinoIcons.person_add,
+                    size: 48,
+                    color: CupertinoColors.systemOrange,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Add more members',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: CupertinoColors.label,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'A group needs at least 2 members to start the payment cycle',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         final timelineData = _calculateTimelineData(members);
-        
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -30,7 +104,8 @@ class GroupTimeline extends StatelessWidget {
             children: [
               _buildTimelineHeader(timelineData),
               const SizedBox(height: 16),
-              ...timelineData['months'].map<Widget>((month) => _buildMonthCard(month)),
+              ...timelineData['months']
+                  .map<Widget>((month) => _buildMonthCard(month)),
             ],
           ),
         );
@@ -40,16 +115,17 @@ class GroupTimeline extends StatelessWidget {
 
   /// Calculates timeline data for the group
   Map<String, dynamic> _calculateTimelineData(List<GroupMember> members) {
-    final totalMonths = group.memberCount;
+    // Use actual member count for timeline calculation
+    final totalMonths = members.isNotEmpty ? members.length : group.memberCount;
     final monthlyAmount = double.parse(group.amount);
     final months = <Map<String, dynamic>>[];
-    
+
     for (int i = 0; i < totalMonths; i++) {
       final monthNumber = i + 1;
       final monthData = _createMonthData(monthNumber, members, monthlyAmount);
       months.add(monthData);
     }
-    
+
     return {
       'months': months,
       'totalMonths': totalMonths,
@@ -58,11 +134,13 @@ class GroupTimeline extends StatelessWidget {
   }
 
   /// Creates data for a specific month
-  Map<String, dynamic> _createMonthData(int monthNumber, List<GroupMember> members, double monthlyAmount) {
+  Map<String, dynamic> _createMonthData(
+      int monthNumber, List<GroupMember> members, double monthlyAmount) {
     final recipient = members[(monthNumber - 1) % members.length];
-    final isCompleted = _isMonthCompleted(monthNumber);
-    final paidMembers = _getPaidMembersForMonth(monthNumber, members);
-    
+    final isCompleted = _isMonthCompleted(monthNumber, members, monthlyAmount);
+    final paidMembers =
+        _getPaidMembersForMonth(monthNumber, members, monthlyAmount);
+
     return {
       'monthNumber': monthNumber,
       'recipient': recipient,
@@ -74,31 +152,54 @@ class GroupTimeline extends StatelessWidget {
     };
   }
 
-  /// Checks if a month is completed
-  bool _isMonthCompleted(int monthNumber) {
-    return monthNumber <= 2;
+  bool _isMonthCompleted(
+      int monthNumber, List<GroupMember> members, double monthlyAmount) {
+    for (final member in members) {
+      final expectedContribution = _getExpectedContributionForMember(
+          member, monthlyAmount, members.length);
+      final actualContribution = double.parse(member.contributionAmount);
+
+      if (actualContribution < expectedContribution) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  double _getExpectedContributionForMember(
+      GroupMember member, double monthlyAmount, int totalMembers) {
+    return PaymentCalculator.calculateMonthlyContribution(
+      totalPoolAmount: monthlyAmount,
+      memberCount: totalMembers,
+      position: member.payoutPosition,
+    );
   }
 
   /// Gets members who have paid for a specific month
-  List<GroupMember> _getPaidMembersForMonth(int monthNumber, List<GroupMember> members) {
-    if (_isMonthCompleted(monthNumber)) {
-      return members; // All members have paid for completed months
+  List<GroupMember> _getPaidMembersForMonth(
+      int monthNumber, List<GroupMember> members, double monthlyAmount) {
+    final paidMembers = <GroupMember>[];
+
+    for (final member in members) {
+      final expectedContribution = _getExpectedContributionForMember(
+          member, monthlyAmount, members.length);
+      final actualContribution = double.parse(member.contributionAmount);
+
+      if (actualContribution >= expectedContribution) {
+        paidMembers.add(member);
+      }
     }
-    
-    // For the month right after completed months, show some paid members
-    if (monthNumber == 3) {
-      return members.take(2).toList();
-    }
-    
-    return []; // No payments for future months
+
+    return paidMembers;
   }
 
   /// Builds the timeline header with progress information
   Widget _buildTimelineHeader(Map<String, dynamic> timelineData) {
     final completedMonths = timelineData['completedMonths'] as int;
     final totalMonths = timelineData['totalMonths'] as int;
-    final progressPercentage = _calculateProgressPercentage(completedMonths, totalMonths);
-    
+    final progressPercentage =
+        _calculateProgressPercentage(completedMonths, totalMonths);
+
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
@@ -136,7 +237,8 @@ class GroupTimeline extends StatelessWidget {
   }
 
   /// Builds progress information row
-  Widget _buildProgressInfo(int completedMonths, int totalMonths, double progressPercentage) {
+  Widget _buildProgressInfo(
+      int completedMonths, int totalMonths, double progressPercentage) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -187,7 +289,7 @@ class GroupTimeline extends StatelessWidget {
     final totalMembers = month['totalMembers'] as int;
     final totalPaid = month['totalPaid'] as int;
     final paidMembers = month['paidMembers'] as List<GroupMember>;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16.0),
@@ -220,7 +322,9 @@ class GroupTimeline extends StatelessWidget {
     return Row(
       children: [
         Icon(
-          isCompleted ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.calendar,
+          isCompleted
+              ? CupertinoIcons.checkmark_circle_fill
+              : CupertinoIcons.calendar,
           color: isCompleted ? primaryColor : textMutedColor,
           size: 20,
         ),
@@ -268,7 +372,8 @@ class GroupTimeline extends StatelessWidget {
   }
 
   /// Builds payment status
-  Widget _buildPaymentStatus(bool isCompleted, int totalPaid, int totalMembers) {
+  Widget _buildPaymentStatus(
+      bool isCompleted, int totalPaid, int totalMembers) {
     return Row(
       children: [
         Icon(
@@ -278,7 +383,7 @@ class GroupTimeline extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          isCompleted 
+          isCompleted
               ? 'All members paid ✓'
               : '$totalPaid of $totalMembers members paid',
           style: TextStyle(
@@ -292,19 +397,24 @@ class GroupTimeline extends StatelessWidget {
   }
 
   /// Builds the paid members list
-  Widget _buildPaidMembersList(List<GroupMember> paidMembers, bool isCompleted) {
+  Widget _buildPaidMembersList(
+      List<GroupMember> paidMembers, bool isCompleted) {
     return Wrap(
       spacing: 8,
       runSpacing: 4,
-      children: paidMembers.map((member) => _buildPaidMemberChip(member, isCompleted)).toList(),
+      children: paidMembers
+          .map((member) => _buildPaidMemberChip(member, isCompleted))
+          .toList(),
     );
   }
 
   /// Builds a paid member chip
   Widget _buildPaidMemberChip(GroupMember member, bool isCompleted) {
     final chipColor = isCompleted ? primaryColor : warningColor;
-    final icon = isCompleted ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.clock;
-    
+    final icon = isCompleted
+        ? CupertinoIcons.checkmark_circle_fill
+        : CupertinoIcons.clock;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
