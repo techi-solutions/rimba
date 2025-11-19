@@ -41,6 +41,9 @@ class WalletState with ChangeNotifier {
 
   // Monerium auth state
   String? _moneriumCodeVerifier;
+  bool _moneriumConnected = false;
+  bool get moneriumConnected => _moneriumConnected;
+
   void safeNotifyListeners() {
     if (_mounted) {
       notifyListeners();
@@ -57,6 +60,7 @@ class WalletState with ChangeNotifier {
     _address = _preferencesService.lastAccount != null
         ? EthereumAddress.fromHex(_preferencesService.lastAccount!)
         : null;
+    _checkMoneriumConnection();
     init();
   }
 
@@ -420,6 +424,17 @@ class WalletState with ChangeNotifier {
         redirectUri: redirectUri,
       );
 
+      // Store tokens securely
+      await _secureService.setMoneriumTokens(
+        accessToken: tokenResponse['access_token'] as String,
+        refreshToken: tokenResponse['refresh_token'] as String?,
+        expiresIn: tokenResponse['expires_in'] as int?,
+      );
+
+      // Update connection status
+      _moneriumConnected = true;
+      safeNotifyListeners();
+
       // Clear the code verifier after successful exchange
       _moneriumCodeVerifier = null;
 
@@ -429,5 +444,31 @@ class WalletState with ChangeNotifier {
       debugPrint('Stack trace: $s');
       rethrow;
     }
+  }
+
+  /// Checks if Monerium is connected (has valid tokens)
+  void _checkMoneriumConnection() {
+    final hasTokens = _secureService.hasMoneriumTokens();
+    final isExpired = _secureService.isMoneriumTokenExpired();
+    _moneriumConnected = hasTokens && !isExpired;
+  }
+
+  /// Disconnects from Monerium by clearing stored tokens
+  Future<void> disconnectMonerium() async {
+    try {
+      await _secureService.clearMoneriumTokens();
+      _moneriumConnected = false;
+      safeNotifyListeners();
+    } catch (e, s) {
+      debugPrint('Error disconnecting Monerium: $e');
+      debugPrint('Stack trace: $s');
+      rethrow;
+    }
+  }
+
+  /// Gets the Monerium access token if available and not expired
+  String? getMoneriumAccessToken() {
+    if (!_moneriumConnected) return null;
+    return _secureService.getMoneriumAccessToken();
   }
 }

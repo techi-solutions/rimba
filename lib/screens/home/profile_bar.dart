@@ -70,6 +70,12 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
 
     final walletState = context.read<WalletState>();
 
+    // Check if already connected
+    if (walletState.moneriumConnected) {
+      await handleMoneriumDisconnect();
+      return;
+    }
+
     try {
       // Build auth URL with PKCE (handled in wallet state)
       final authData = await walletState.buildMoneriumAuthUrl();
@@ -100,6 +106,31 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
         return;
       }
 
+      // Extract authorization code from the path
+      final uri = Uri.parse(path);
+      final code = uri.queryParameters['code'];
+
+      if (code == null || code.isEmpty) {
+        debugPrint('No authorization code found in callback');
+        if (!mounted) return;
+
+        toastification.showCustom(
+          context: context,
+          autoCloseDuration: const Duration(seconds: 5),
+          alignment: Alignment.bottomCenter,
+          builder: (context, toast) => Toast(
+            icon: const Text('❌'),
+            title: Text('Failed to connect to Monerium'),
+          ),
+        );
+        return;
+      }
+
+      // Exchange code for tokens
+      await walletState.exchangeMoneriumCode(code);
+
+      if (!mounted) return;
+
       // display success toast
       toastification.showCustom(
         context: context,
@@ -112,7 +143,79 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
       );
     } catch (e) {
       debugPrint('Error starting Monerium connect: $e');
-      // TODO: Show error to user
+
+      if (!mounted) return;
+
+      toastification.showCustom(
+        context: context,
+        autoCloseDuration: const Duration(seconds: 5),
+        alignment: Alignment.bottomCenter,
+        builder: (context, toast) => Toast(
+          icon: const Text('❌'),
+          title: Text('Failed to connect to Monerium'),
+        ),
+      );
+    }
+  }
+
+  Future<void> handleMoneriumDisconnect() async {
+    HapticFeedback.mediumImpact();
+
+    final walletState = context.read<WalletState>();
+
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Disconnect Monerium'),
+        content: const Text(
+            'Are you sure you want to disconnect your IBAN account?'),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Disconnect'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    try {
+      await walletState.disconnectMonerium();
+
+      if (!mounted) return;
+
+      toastification.showCustom(
+        context: context,
+        autoCloseDuration: const Duration(seconds: 3),
+        alignment: Alignment.bottomCenter,
+        builder: (context, toast) => Toast(
+          icon: const Text('✅'),
+          title: Text('Monerium disconnected'),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error disconnecting Monerium: $e');
+
+      if (!mounted) return;
+
+      toastification.showCustom(
+        context: context,
+        autoCloseDuration: const Duration(seconds: 5),
+        alignment: Alignment.bottomCenter,
+        builder: (context, toast) => Toast(
+          icon: const Text('❌'),
+          title: Text('Failed to disconnect'),
+        ),
+      );
     }
   }
 
@@ -125,6 +228,11 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
     final balance = context.select<WalletState, String>(
       (state) => state.tokenBalances[tokenConfig.address] ?? '0.0',
     );
+
+    final moneriumConnected = context.select<WalletState, bool>(
+      (state) => state.moneriumConnected,
+    );
+
     final config = widget.config;
 
     final topUpPlugin = config.getTopUpPlugin(
@@ -137,6 +245,7 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
       config,
       tokenConfig,
       topUpPlugin,
+      moneriumConnected,
     );
   }
 
@@ -146,6 +255,7 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
     Config? config,
     TokenConfig? tokenConfig,
     PluginConfig? topUpPlugin,
+    bool moneriumConnected,
   ) {
     final safeArea = MediaQuery.of(context).padding;
     final width = MediaQuery.of(context).size.width;
@@ -203,6 +313,7 @@ class _ProfileBarState extends State<ProfileBar> with TickerProviderStateMixin {
                       icon: CupertinoIcons.device_phone_portrait,
                       onTopUpPressed:
                           !widget.loading ? handleMoneriumConnect : null,
+                      topUpButtonConnected: moneriumConnected,
                       onCardNameTapped: handleEditProfile,
                       onCardPressed: null,
                       onCardBalanceTapped: null,
