@@ -14,6 +14,9 @@ class SecureService {
   late SharedPreferences _preferences;
 
   static const String _privateKeyKey = 'ethereum_private_key';
+  static const String _moneriumTokenKey = 'monerium_access_token';
+  static const String _moneriumRefreshTokenKey = 'monerium_refresh_token';
+  static const String _moneriumTokenExpiryKey = 'monerium_token_expiry';
 
   Future init(SharedPreferences pref) async {
     _preferences = pref;
@@ -90,5 +93,50 @@ class SecureService {
   // Delete the stored private key
   Future clearCredentials() async {
     await _preferences.remove(_privateKeyKey);
+  }
+
+  // Monerium token management
+  Future setMoneriumTokens({
+    required String accessToken,
+    String? refreshToken,
+    int? expiresIn,
+  }) async {
+    await _preferences.setString(_moneriumTokenKey, accessToken);
+    if (refreshToken != null) {
+      await _preferences.setString(_moneriumRefreshTokenKey, refreshToken);
+    }
+    if (expiresIn != null) {
+      final expiryTime =
+          DateTime.now().millisecondsSinceEpoch + (expiresIn * 1000);
+      await _preferences.setInt(_moneriumTokenExpiryKey, expiryTime);
+    }
+  }
+
+  String? getMoneriumAccessToken() {
+    return _preferences.getString(_moneriumTokenKey);
+  }
+
+  String? getMoneriumRefreshToken() {
+    return _preferences.getString(_moneriumRefreshTokenKey);
+  }
+
+  int? getMoneriumTokenExpiry() {
+    return _preferences.getInt(_moneriumTokenExpiryKey);
+  }
+
+  bool hasMoneriumTokens() {
+    return _preferences.containsKey(_moneriumTokenKey);
+  }
+
+  bool isMoneriumTokenExpired() {
+    final expiry = getMoneriumTokenExpiry();
+    if (expiry == null) return true;
+    return DateTime.now().millisecondsSinceEpoch >= expiry;
+  }
+
+  Future clearMoneriumTokens() async {
+    await _preferences.remove(_moneriumTokenKey);
+    await _preferences.remove(_moneriumRefreshTokenKey);
+    await _preferences.remove(_moneriumTokenExpiryKey);
   }
 }

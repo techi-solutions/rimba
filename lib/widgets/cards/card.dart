@@ -26,6 +26,9 @@ class Card extends StatefulWidget {
   final String? balance;
   final IconData? icon;
   final VoidCallback? onTopUpPressed;
+  final String? topUpButtonText;
+  final IconData? topUpButtonIcon;
+  final bool topUpButtonConnected;
   final Future<void> Function()? onCardNameTapped;
   final Future<void> Function(String)? onCardNameUpdated;
   final Future<void> Function(String)? onCardPressed;
@@ -45,6 +48,9 @@ class Card extends StatefulWidget {
     this.balance,
     this.icon,
     this.onTopUpPressed,
+    this.topUpButtonText,
+    this.topUpButtonIcon,
+    this.topUpButtonConnected = false,
     this.onCardNameTapped,
     this.onCardNameUpdated,
     this.onCardPressed,
@@ -331,27 +337,39 @@ class _CardState extends State<Card> {
                   if (widget.onTopUpPressed != null)
                     CupertinoButton(
                       padding: EdgeInsets.zero,
-                      color: whiteColor,
+                      color: widget.topUpButtonConnected
+                          ? CupertinoColors.activeGreen
+                          : whiteColor,
                       borderRadius: BorderRadius.circular(8),
                       minimumSize: Size.zero,
                       onPressed: widget.onTopUpPressed,
                       child: SizedBox(
-                        width: 80,
+                        width: widget.topUpButtonConnected ? 96 : 80,
                         height: 28,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Icon(
-                              CupertinoIcons.plus,
-                              color: widget.color,
+                              widget.topUpButtonIcon ??
+                                  (widget.topUpButtonConnected
+                                      ? CupertinoIcons.checkmark_alt
+                                      : CupertinoIcons.plus),
+                              color: widget.topUpButtonConnected
+                                  ? whiteColor
+                                  : widget.color,
                               size: 14,
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              AppLocalizations.of(context)!.addFunds,
+                              widget.topUpButtonText ??
+                                  (widget.topUpButtonConnected
+                                      ? 'Connected'
+                                      : AppLocalizations.of(context)!.addFunds),
                               style: TextStyle(
-                                color: widget.color,
+                                color: widget.topUpButtonConnected
+                                    ? whiteColor
+                                    : widget.color,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
