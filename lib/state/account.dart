@@ -72,7 +72,7 @@ class AccountState with ChangeNotifier {
       final calldata =
           _config.sessionManagerModuleContract.revokeCallData(address);
 
-      final (_, userOp) = await prepareUserop(
+      final (_, userOp, _, _) = await prepareUserop(
         _config,
         account,
         key,
@@ -143,7 +143,7 @@ class AccountState with ChangeNotifier {
       final calldata =
           _config.sessionManagerModuleContract.revokeCallData(address);
 
-      final (_, userOp) = await prepareUserop(
+      final (_, userOp, _, _) = await prepareUserop(
         _config,
         account,
         key,
