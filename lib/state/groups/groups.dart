@@ -929,6 +929,8 @@ class GroupsState extends ChangeNotifier {
     final token = _config.getPrimaryToken();
     final paymentUserOps = <PaymentUserOp>[];
 
+    BigInt baseNonce = await _config.getNonce(account.hexEip55);
+
     for (int i = 0; i < currentGroupMembers.length; i++) {
       final member = currentGroupMembers[i];
 
@@ -944,20 +946,28 @@ class GroupsState extends ChangeNotifier {
         contributionAmount,
       );
 
-      final (hash, userOp) = await prepareUserop(
+      final currentNonce = baseNonce + BigInt.from(i);
+      final validAfter = startDate;
+      final validUntil = endDate;
+
+      final (hash, userOp, returnedValidAfter, returnedValidUntil) =
+          await prepareUserop(
         _config,
         account,
         key,
         [token.address],
         [calldata],
+        customNonce: currentNonce,
+        deploy: (i == 0),
+        validAfter: validAfter,
+        validUntil: validUntil,
       );
-      debugPrint('   - UserOp hash: $hash');
 
       paymentUserOps.add(
         PaymentUserOp(
           userOp: userOp.toJson(),
-          startDate: startDate.toIso8601String(),
-          endDate: endDate.toIso8601String(),
+          startDate: (returnedValidAfter ?? startDate).toIso8601String(),
+          endDate: (returnedValidUntil ?? endDate).toIso8601String(),
           executionMonth: 1,
           status: 'pending',
         ),

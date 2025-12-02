@@ -256,7 +256,7 @@ Future<String?> setProfile(
     final calldata = config.profileContract
         .setCallData(account.hexEip55, profile.username, profileUrl);
 
-    final (_, userop) = await prepareUserop(
+    final (_, userop, _, _) = await prepareUserop(
       config,
       account,
       credentials,
@@ -313,7 +313,7 @@ Future<String?> updateProfile(Config config, EthereumAddress account,
     final calldata = config.profileContract
         .setCallData(account.hexEip55, profile.username, profileUrl);
 
-    final (_, userop) = await prepareUserop(
+    final (_, userop, _, _) = await prepareUserop(
       config,
       account,
       credentials,
@@ -416,7 +416,7 @@ Future<bool> createAccount(
       calldata = config.communityModuleContract.getChainIdCallData();
     }
 
-    final (_, userop) = await prepareUserop(
+    final (_, userop, _, _) = await prepareUserop(
       config,
       account,
       credentials,
@@ -549,7 +549,7 @@ Future<(List<PaymasterData>, Exception?)> getPaymasterOOData(
 }
 
 /// prepare a userop for with calldata
-Future<(String, UserOp)> prepareUserop(
+Future<(String, UserOp, DateTime?, DateTime?)> prepareUserop(
   Config config,
   EthereumAddress account,
   EthPrivateKey credentials,
@@ -557,6 +557,8 @@ Future<(String, UserOp)> prepareUserop(
   List<Uint8List> calldata, {
   BigInt? customNonce,
   bool deploy = true,
+  DateTime? validAfter,
+  DateTime? validUntil,
 }) async {
   try {
     // instantiate user op with default values
@@ -682,7 +684,7 @@ Future<(String, UserOp)> prepareUserop(
     // now we can sign the user op
     userop.generateSignature(credentials, hash);
 
-    return (bytesToHex(hash, include0x: true), userop);
+    return (bytesToHex(hash, include0x: true), userop, validAfter, validUntil);
   } catch (_) {
     rethrow;
   }
